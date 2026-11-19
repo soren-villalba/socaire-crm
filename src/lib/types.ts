@@ -48,6 +48,7 @@ export interface Client extends Base {
   total_branches?: number | null
   peak_seasons?: string | null
   folder_path?: string | null
+  drive_url?: string | null // liga a la carpeta del cliente en Google Drive
   notes?: string | null
 }
 
@@ -233,6 +234,7 @@ export interface Project extends Base {
   estimated_hours?: number | null
   manager_id?: ID | null
   freeze_window?: string | null
+  drive_url?: string | null // liga a la carpeta del proyecto en Google Drive
   notes?: string | null
 }
 
@@ -329,7 +331,7 @@ export interface DocumentRec extends Base {
   name: string
   kind: 'cotizacion' | 'contrato' | 'propuesta' | 'nda' | 'acta' | 'minuta' | 'roadmap' | 'aviso_privacidad' | 'factura' | 'tecnico' | 'otro'
   status: 'borrador' | 'enviado' | 'aprobado' | 'firmado' | 'cerrado'
-  location: string // ruta en la carpeta de socaire o URL
+  location: string // liga de Google Drive (u otra https) o ruta en la carpeta de socaire
   notes?: string | null
 }
 

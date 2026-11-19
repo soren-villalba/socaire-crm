@@ -6,6 +6,8 @@ import { Empty, StatusBadge, Badge, Menu, MenuItem, Progress } from './ui'
 import { ClientLink, DueDate, UserChip } from './links'
 import { useQuick } from './QuickCreate'
 import { useToast } from './Toast'
+import { DriveIcon } from './drive'
+import { looksLikeUrl, parseDrive, safeHttpsUrl } from '../lib/drive'
 import type { DocumentRec, Invoice, Payment, Project, Subscription, Task, Ticket } from '../lib/types'
 import { DOC_KINDS, DOC_STATUS, PAY_STATUS, PAYMENT_METHODS, PRIORITY, PROJECT_STATUS, SUB_STATUS, TICKET_STATUS, TASK_KINDS } from '../lib/constants'
 import { fdate, money, todayISO } from '../lib/format'
@@ -268,8 +270,7 @@ export function TicketsTable({ rows, showClient = true }: { rows: Ticket[]; show
 export function DocumentsTable({ rows, showClient = true }: { rows: DocumentRec[]; showClient?: boolean }) {
   const quick = useQuick()
   const toast = useToast()
-  if (!rows.length) return <Empty title="Sin documentos">Guarda aquí la ruta del archivo en la carpeta de socaire (o un enlace) para encontrarlo desde la ficha.</Empty>
-  const isUrl = (s: string) => /^https?:\/\//.test(s)
+  if (!rows.length) return <Empty title="Sin documentos">Los archivos viven en Google Drive: pega aquí su liga para abrirlos desde la ficha.</Empty>
   return (
     <table className="w-full text-sm">
       <thead className="border-b border-stone-200 bg-stone-50/60">
@@ -290,9 +291,23 @@ export function DocumentsTable({ rows, showClient = true }: { rows: DocumentRec[
             {showClient && <td className="td">{d.client_id ? <ClientLink id={d.client_id} /> : <span className="text-stone-400">Interno</span>}</td>}
             <td className="td"><StatusBadge map={DOC_STATUS} value={d.status} /></td>
             <td className="td max-w-[320px]" onClick={(e) => e.stopPropagation()}>
-              {isUrl(d.location) ? (
-                <a href={d.location} target="_blank" rel="noreferrer" className="link inline-flex items-center gap-1">Abrir <ExternalLink size={12} /></a>
-              ) : (
+              {(() => {
+                const drive = parseDrive(d.location)
+                if (drive)
+                  return (
+                    <a href={drive.url} target="_blank" rel="noopener noreferrer" className="link inline-flex items-center gap-1" title={`${drive.label} · abrir en Drive`}>
+                      <DriveIcon kind={drive.kind} size={13} /> Abrir en Drive <ExternalLink size={12} />
+                    </a>
+                  )
+                const web = safeHttpsUrl(d.location)
+                if (web)
+                  return (
+                    <a href={web} target="_blank" rel="noopener noreferrer" className="link inline-flex items-center gap-1" title={`Liga fuera de Drive: ${new URL(web).hostname}`}>
+                      Abrir enlace <ExternalLink size={12} />
+                    </a>
+                  )
+                if (looksLikeUrl(d.location)) return <span className="text-xs text-amber-600" title={d.location}>Liga no válida</span>
+                return (
                 <button
                   title="Copiar ruta"
                   className="inline-flex max-w-full items-center gap-1 truncate text-xs text-stone-500 hover:text-brand-700"
@@ -305,7 +320,8 @@ export function DocumentsTable({ rows, showClient = true }: { rows: DocumentRec[
                   <span className="truncate">{d.location}</span>
                   <Copy size={11} className="shrink-0" />
                 </button>
-              )}
+                )
+              })()}
             </td>
             <td className="td tnum text-stone-500">{fdate(d.updated_at.slice(0, 10))}</td>
           </tr>

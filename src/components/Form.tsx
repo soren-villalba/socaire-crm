@@ -18,6 +18,8 @@ export interface FieldDef {
   step?: number
   autoFocus?: boolean
   emptyLabel?: string
+  /** Devuelve un mensaje de error si el valor no es válido. */
+  validate?: (val: unknown, all: Record<string, unknown>) => string | undefined
 }
 
 type Values = Record<string, unknown>
@@ -45,6 +47,10 @@ export function RecordForm({ fields, initial, onSubmit, onCancel, submitLabel = 
       if (f.show && !f.show(v)) continue
       const val = v[f.name]
       if (f.required && (val == null || val === '' || (Array.isArray(val) && !val.length))) errs[f.name] = 'Obligatorio'
+      else if (f.validate) {
+        const msg = f.validate(val, v)
+        if (msg) errs[f.name] = msg
+      }
     }
     setErrors(errs)
     if (Object.keys(errs).length) return
@@ -52,6 +58,7 @@ export function RecordForm({ fields, initial, onSubmit, onCancel, submitLabel = 
     for (const f of fields) {
       if (f.show && !f.show(v)) continue
       let val = v[f.name]
+      if (typeof val === 'string' && f.type !== 'textarea') val = val.trim()
       if ((f.type === 'number' || f.type === 'money') && val !== '' && val != null) val = Number(val)
       if (val === '') val = f.type === 'number' || f.type === 'money' ? null : null
       clean[f.name] = val

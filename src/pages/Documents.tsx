@@ -37,11 +37,11 @@ export default function Documents() {
     <>
       <PageHeader
         title="Documentos"
-        subtitle="Índice de contratos, cotizaciones, propuestas, actas y minutas. Los archivos siguen en la carpeta de socaire; aquí vive su ubicación y estado."
+        subtitle="Índice de contratos, cotizaciones, propuestas, actas y minutas. Los archivos viven en Google Drive; aquí se guarda su liga y su estado."
         actions={<button className="btn-primary" onClick={() => quick.open('document')}><Plus size={16} /> Nuevo documento</button>}
       />
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <SearchInput value={q} onChange={setQ} placeholder="Buscar nombre, ruta o cliente…" />
+        <SearchInput value={q} onChange={setQ} placeholder="Buscar nombre, liga o cliente…" />
         <select className="input w-52" value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="">Todos los tipos</option>
           {DOC_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}

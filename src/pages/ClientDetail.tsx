@@ -4,6 +4,7 @@ import { ArrowLeft, MessageSquarePlus, CheckSquare, Target, Pencil, Plus, Phone,
 import { useData } from '../lib/store'
 import { Card, KV, StatusBadge, Tabs, Empty, Badge, Avatar, Menu, MenuItem } from '../components/ui'
 import { DueDate, UserChip } from '../components/links'
+import { DriveFolderButton, DriveFolderValue } from '../components/drive'
 import { useQuick } from '../components/QuickCreate'
 import { InvoicesTable, PaymentsTable, ProjectsTable, SubscriptionsTable, TaskList, TicketsTable, DocumentsTable } from '../components/tables'
 import { CLIENT_STATUS, INTERACTION_KINDS, PRIORITY, SOURCES, QUOTE_STATUS } from '../lib/constants'
@@ -99,6 +100,7 @@ export default function ClientDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <DriveFolderButton url={c.drive_url} className="btn-secondary" label="Drive" />
           <button className="btn-secondary" onClick={() => quick.open('interaction', { client_id: c.id })}><MessageSquarePlus size={15} /> Interacción</button>
           <button className="btn-secondary" onClick={() => quick.open('task', { client_id: c.id, related_type: 'client', related_id: c.id })}><CheckSquare size={15} /> Tarea</button>
           <button className="btn-secondary" onClick={() => quick.open('opportunity', { client_id: c.id })}><Target size={15} /> Oportunidad</button>
@@ -194,7 +196,8 @@ export default function ClientDetail() {
                   <KV label="Temporadas altas">{c.peak_seasons}</KV>
                   <KV label="Aprueba">{approver ? approver.name : <span className="text-amber-600">Sin definir</span>}</KV>
                   {data.referredBy && <KV label="Referido por"><Link className="link" to={`/clientes/${data.referredBy.referrer_client_id}`}>{byId('clients', data.referredBy.referrer_client_id)?.company_name}</Link></KV>}
-                  <KV label="Carpeta">{c.folder_path ? <span className="break-all text-xs">{c.folder_path}</span> : null}</KV>
+                  <KV label="Carpeta en Drive">{c.drive_url ? <DriveFolderValue url={c.drive_url} /> : <button className="link text-xs" onClick={() => quick.edit('client', c)}>Agregar liga</button>}</KV>
+                  {c.folder_path && <KV label="Carpeta local"><span className="break-all text-xs">{c.folder_path}</span></KV>}
                 </dl>
               </Card>
               <Card title={<span className="flex items-center gap-1.5">Datos fiscales {fiscalMissing && <Badge tone="amber">Incompletos</Badge>}</span>}>
@@ -334,7 +337,7 @@ export default function ClientDetail() {
         )}
 
         {tab === 'documentos' && (
-          <Card title="Documentos" actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('document', { client_id: c.id })}><Plus size={13} /> Documento</button>} bodyClass="">
+          <Card title="Documentos" actions={<div className="flex gap-2"><DriveFolderButton url={c.drive_url} /><button className="btn-secondary btn-sm" onClick={() => quick.open('document', { client_id: c.id })}><Plus size={13} /> Documento</button></div>} bodyClass="">
             <DocumentsTable rows={data.documents} showClient={false} />
           </Card>
         )}

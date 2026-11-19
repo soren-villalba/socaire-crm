@@ -41,6 +41,7 @@ El CRM usa el proyecto de Supabase `hadvkwynsgznwbpwprtv`. Para instalarlo desde
 2. Authentication → Users → Add user: primero el administrador, después los demás ("Auto Confirm User").
 3. SQL Editor → pegar `supabase/instalar-todo.sql` → Run (esquema, permisos, auditoría y datos iniciales).
 4. SQL Editor → pegar `supabase/migrations/0002_seguridad.sql` → Run (refuerzo de seguridad).
+   Después, pegar `supabase/migrations/0003_drive.sql` → Run (ligas de carpetas de Google Drive).
 5. Si alguien entra y ve "no tiene perfil activo", correr `supabase/reparar-acceso.sql`.
 6. Para dar de alta a alguien nuevo: crearlo en Authentication → Users. Entra **inactivo y sin roles**; actívalo y dale roles en Configuración → Usuarios y roles.
 
