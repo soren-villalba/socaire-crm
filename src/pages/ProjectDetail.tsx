@@ -5,6 +5,7 @@ import { useData } from '../lib/store'
 import { Card, KV, StatusBadge, Tabs, Empty, Badge, Progress, Menu, MenuItem } from '../components/ui'
 import { ClientLink, DueDate, UserChip } from '../components/links'
 import { useQuick, createVeleroPhases } from '../components/QuickCreate'
+import { DriveFolderButton } from '../components/drive'
 import { TaskList, DocumentsTable } from '../components/tables'
 import { CHANGE_STATUS, PHASE_STATUS, PROJECT_STATUS, PRIORITY } from '../lib/constants'
 import { fdate, money, todayISO } from '../lib/format'
@@ -86,6 +87,7 @@ export default function ProjectDetail() {
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={() => quick.open('time', { project_id: p.id, client_id: p.client_id, phase_id: data.prog.current?.id })}><Clock size={15} /> Registrar horas</button>
           <button className="btn-secondary" onClick={() => quick.open('change', { project_id: p.id, client_id: p.client_id })}><Plus size={15} /> Cambio de alcance</button>
+          <DriveFolderButton url={p.drive_url ?? byId('clients', p.client_id)?.drive_url} className="btn-secondary" label="Drive" />
           <button className="btn-secondary" onClick={() => quick.edit('project', p)}><Pencil size={15} /> Editar</button>
         </div>
       </div>
@@ -276,7 +278,7 @@ export default function ProjectDetail() {
         )}
 
         {tab === 'documentos' && (
-          <Card title="Documentos" actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('document', { project_id: p.id, client_id: p.client_id })}><Plus size={13} /> Documento</button>} bodyClass="">
+          <Card title="Documentos" actions={<div className="flex gap-2"><DriveFolderButton url={p.drive_url ?? byId('clients', p.client_id)?.drive_url} label={p.drive_url ? 'Carpeta en Drive' : 'Carpeta del cliente'} /><button className="btn-secondary btn-sm" onClick={() => quick.open('document', { project_id: p.id, client_id: p.client_id })}><Plus size={13} /> Documento</button></div>} bodyClass="">
             <DocumentsTable rows={data.docs} showClient={false} />
           </Card>
         )}

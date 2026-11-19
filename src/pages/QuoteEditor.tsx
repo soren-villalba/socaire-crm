@@ -2,10 +2,13 @@ import logo from '../logo.svg'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Copy, Printer, Send, Check, X, Plus, Trash2, Lock } from 'lucide-react'
+import { ArrowLeft, Copy, Printer, Send, Check, X, Plus, Trash2, Lock, ExternalLink } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { Badge, Card, StatusBadge, Confirm } from '../components/ui'
 import { ClientLink } from '../components/links'
+import { useQuick } from '../components/QuickCreate'
+import { DriveFolderButton, DriveIcon } from '../components/drive'
+import { parseDrive } from '../lib/drive'
 import { QUOTE_STATUS } from '../lib/constants'
 import { addDays, fdate, money, todayISO } from '../lib/format'
 import { quoteEffectiveStatus, quoteTotals } from '../lib/metrics'
@@ -54,6 +57,8 @@ export default function QuoteEditor() {
   const items = useMemo(() => db.quote_items.filter((i) => i.quote_id === quote?.id && !i.deleted_at).sort((a, b) => a.sort - b.sort), [db.quote_items, quote?.id])
   const versions = useMemo(() => quotes.filter((q) => q.folio === quote?.folio).sort((a, b) => b.version - a.version), [quotes, quote?.folio])
   const [confirmDel, setConfirmDel] = useState(false)
+  const quick = useQuick()
+  const docs = useMemo(() => db.documents.filter((d) => d.quote_id === quote?.id && !d.deleted_at), [db.documents, quote?.id])
 
   if (!quote) return <div className="text-stone-500">{id === 'nueva' ? 'Creando cotización…' : 'Cotización no encontrada.'}</div>
 
@@ -209,6 +214,26 @@ export default function QuoteEditor() {
               ))}
             </ul>
           </Card>
+          <Card title="Documentos" bodyClass="" actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('document', { quote_id: quote.id, client_id: quote.client_id, kind: 'cotizacion', name: `Cotización ${quote.folio}${quote.version > 1 ? ` v${quote.version}` : ''}` })}><Plus size={13} /> Liga</button>}>
+            {docs.length ? (
+              <ul className="divide-y divide-stone-100">
+                {docs.map((d) => {
+                  const drive = parseDrive(d.location)
+                  return (
+                    <li key={d.id} className="flex items-center gap-2 px-4 py-2 text-sm">
+                      <button className="min-w-0 flex-1 truncate text-left hover:text-brand-700" onClick={() => quick.edit('document', d)} title="Editar">{d.name}</button>
+                      {drive ? (
+                        <a href={drive.url} target="_blank" rel="noopener noreferrer" className="link inline-flex shrink-0 items-center gap-1 text-xs" title={drive.label}><DriveIcon kind={drive.kind} size={12} /> Abrir <ExternalLink size={11} /></a>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="px-4 py-3 text-xs text-stone-500">Liga aquí el PDF o la versión firmada que tengas en Drive.</p>
+            )}
+          </Card>
+          <DriveFolderButton url={client?.drive_url} className="btn-secondary w-full justify-center" label="Carpeta del cliente en Drive" />
           {client && (
             <Card title="Cliente">
               <ClientLink id={client.id} />

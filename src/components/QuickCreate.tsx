@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Drawer } from './ui'
+import { validateDocLocation, validateDriveFolder } from '../lib/drive'
 import { RecordForm, type FieldDef, type Option } from './Form'
 import { useData, useTable } from '../lib/store'
 import type { TableName, Tables, Stage } from '../lib/types'
@@ -121,7 +122,8 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
           { name: 'tax_zip', label: 'CP fiscal', span: 1 },
           { name: 'cfdi_use', label: 'Uso de CFDI', span: 1 },
           { name: 'billing_email', label: 'Correo de facturación', type: 'email', span: 1 },
-          { name: 'folder_path', label: 'Carpeta en socaire', placeholder: '06_Clientes/Activos/…' },
+          { name: 'drive_url', label: 'Carpeta del cliente en Google Drive', placeholder: 'https://drive.google.com/drive/folders/…', hint: 'En Drive: clic derecho en la carpeta → Compartir → Copiar vínculo', validate: validateDriveFolder },
+          { name: 'folder_path', label: 'Carpeta en socaire (ruta local, opcional)', placeholder: '06_Clientes/Activos/…' },
           { name: 'notes', label: 'Notas internas', type: 'textarea' },
         ]
       case 'contact':
@@ -219,7 +221,7 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
           { name: 'name', label: 'Nombre', required: true, autoFocus: true },
           { name: 'kind', label: 'Tipo', type: 'select', options: DOC_KINDS, required: true, span: 1 },
           { name: 'status', label: 'Estado', type: 'select', options: toOpts(DOC_STATUS), required: true, span: 1 },
-          { name: 'location', label: 'Ubicación (ruta en la carpeta de socaire o enlace)', required: true, placeholder: '06_Clientes/Activos/… o https://…' },
+          { name: 'location', label: 'Liga de Google Drive', required: true, placeholder: 'https://docs.google.com/… o https://drive.google.com/…', hint: 'En Drive: clic derecho → Compartir → Copiar vínculo. También acepta una ruta de la carpeta de socaire.', validate: validateDocLocation },
           { name: 'client_id', label: 'Cliente', type: 'select', options: clientOpts, span: 1 },
           { name: 'project_id', label: 'Proyecto', type: 'select', options: projectOpts, span: 1 },
           { name: 'notes', label: 'Notas', type: 'textarea' },
@@ -303,6 +305,7 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
           { name: 'manager_id', label: 'Responsable', type: 'select', options: userOpts, span: 1 },
           { name: 'opportunity_id', label: 'Oportunidad', type: 'select', span: 1, options: opps.map((o) => ({ value: o.id, label: o.title })) },
           { name: 'freeze_window', label: 'Ventana de congelamiento', placeholder: 'Temporada alta del cliente' },
+          { name: 'drive_url', label: 'Carpeta del proyecto en Google Drive', placeholder: 'https://drive.google.com/drive/folders/…', validate: validateDriveFolder },
           { name: 'description', label: 'Alcance', type: 'textarea' },
           { name: 'with_velero', label: 'Crear fases VELERO (H1–H7) automáticamente', type: 'checkbox', show: () => !isEdit },
         ]
