@@ -1,0 +1,25 @@
+# Netlify: se construye solo cada vez que se sube un cambio a la rama main de GitHub.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Datos públicos del proyecto de Supabase del CRM (la clave "publishable" es pública por diseño;
+  # la seguridad la ponen el inicio de sesión y las reglas RLS de la base).
+  VITE_SUPABASE_URL = "https://hadvkwynsgznwbpwprtv.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "sb_publishable__x2cofDrC52LLs_oatRcow_xIpN_Zeu"
+
+# Todas las rutas del CRM las resuelve la app (React Router).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Robots-Tag = "noindex, nofollow"
