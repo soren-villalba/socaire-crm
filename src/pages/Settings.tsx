@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Plus, Download, Upload, RotateCcw } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
-import { PageHeader, Tabs, Card, Badge, Confirm, Empty } from '../components/ui'
+import { PageHeader, Tabs, Card, Badge, Confirm, Empty, clickRow } from '../components/ui'
 import { useQuick } from '../components/QuickCreate'
 import { useToast } from '../components/Toast'
 import { ROLES, DEFAULT_SETTINGS, type Settings } from '../lib/constants'
 import { fdatetime, money, todayISO } from '../lib/format'
 import { LocalBackend, importToSupabase, supabase } from '../lib/backend'
 import { TABLES, type DB } from '../lib/types'
+import { usePersist } from '../lib/usePersist'
 
 type TabKey = 'usuarios' | 'catalogo' | 'parametros' | 'datos' | 'auditoria'
 
@@ -19,7 +20,7 @@ const TABLE_LABELS: Record<string, string> = {
 }
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<TabKey>('usuarios')
+  const [tab, setTab] = usePersist<TabKey>('config.tab', 'usuarios')
   const { db, backend, settings, insert, update, reload, can, me } = useData()
   const users = useTable('profiles')
   const products = useTable('products')
@@ -103,7 +104,7 @@ export default function SettingsPage() {
     <div>
       <label className="label">{label}</label>
       <input className="input tnum" type="number" step={step} value={form[key] as number} onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })} />
-      {hint && <p className="mt-1 text-xs text-stone-400">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
     </div>
   )
 
@@ -129,7 +130,7 @@ export default function SettingsPage() {
               <tbody className="divide-y divide-stone-100">
                 {users.map((u) => (
                   <tr key={u.id} className={`${can('users.manage') ? 'cursor-pointer hover:bg-stone-50' : ''}`} onClick={() => can('users.manage') && quick.edit('profile', u)}>
-                    <td className="td font-medium">{u.full_name}{u.id === me?.id && <span className="ml-1 text-xs text-stone-400">(tú)</span>}</td>
+                    <td className="td font-medium">{u.full_name}{u.id === me?.id && <span className="ml-1 text-xs text-stone-500">(tú)</span>}</td>
                     <td className="td text-stone-600">{u.email || '—'}</td>
                     <td className="td"><div className="flex flex-wrap gap-1">{u.roles.map((r) => <Badge key={r} tone={r === 'admin' ? 'brand' : 'neutral'}>{ROLES.find((x) => x.value === r)?.label}</Badge>)}</div></td>
                     <td className="td tnum text-right">{money(u.hourly_cost)}</td>
@@ -150,7 +151,7 @@ export default function SettingsPage() {
               <thead className="border-b border-stone-200 bg-stone-50/60"><tr><th className="th">Nombre</th><th className="th">Tipo</th><th className="th">Cobro</th><th className="th text-right">Lista</th><th className="th text-right">Introductorio</th><th className="th text-right">Alta</th><th className="th">Estado</th></tr></thead>
               <tbody className="divide-y divide-stone-100">
                 {products.map((p) => (
-                  <tr key={p.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('product', p)}>
+                  <tr key={p.id} {...clickRow(() => quick.edit('product', p))}>
                     <td className="td"><div className="font-medium">{p.name}</div>{p.description && <div className="max-w-md truncate text-xs text-stone-500">{p.description}</div>}</td>
                     <td className="td capitalize text-stone-600">{p.kind}</td>
                     <td className="td text-stone-600">{{ mensual: 'Mensual', unico: 'Pago único', por_hora: 'Por hora' }[p.billing]} / {p.unit}</td>
@@ -178,7 +179,7 @@ export default function SettingsPage() {
               <div>
                 <label className="label">Escalones de descuento por referido</label>
                 <input className="input tnum" value={form.referral_steps.join(', ')} onChange={(e) => setForm({ ...form, referral_steps: e.target.value.split(',').map((x) => Number(x.trim())).filter((n) => !isNaN(n)) })} />
-                <p className="mt-1 text-xs text-stone-400">Separados por coma: 100, 50, 50</p>
+                <p className="mt-1 text-xs text-stone-500">Separados por coma: 100, 50, 50</p>
               </div>
               <div>
                 <label className="label">Recordatorios de cobro (días)</label>

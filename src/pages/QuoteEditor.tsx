@@ -297,8 +297,8 @@ export default function QuoteEditor() {
 function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
   return (
     <div className="flex justify-between">
-      <span className={muted ? 'text-stone-400' : 'text-stone-600'}>{label}</span>
-      <span className={`tnum ${strong ? 'font-semibold text-brand-800' : muted ? 'text-stone-400' : ''}`}>{value}</span>
+      <span className={muted ? 'text-stone-500' : 'text-stone-600'}>{label}</span>
+      <span className={`tnum ${strong ? 'font-semibold text-brand-800' : muted ? 'text-stone-500' : ''}`}>{value}</span>
     </div>
   )
 }

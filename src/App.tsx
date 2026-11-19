@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { BrowserRouter, HashRouter, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { ToastProvider } from './components/Toast'
+import { AppSkeleton } from './components/ui'
 import { DataProvider, useData } from './lib/store'
 import { QuickProvider } from './components/QuickCreate'
 import { Layout } from './components/Layout'
@@ -27,12 +28,7 @@ const Router = import.meta.env.MODE === 'archivo' ? HashRouter : BrowserRouter
 
 function Shell() {
   const { loading, me, backend, error, reload } = useData()
-  if (loading)
-    return (
-      <div className="flex h-screen items-center justify-center text-stone-400">
-        <img src={logo} alt="" className="mr-3 h-8 w-8 animate-pulse" /> Cargando…
-      </div>
-    )
+  if (loading) return <AppSkeleton />
   if (backend.mode === 'supabase' && !me)
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-3 p-6 text-center text-sm text-stone-600">
@@ -96,7 +92,7 @@ function Login() {
           <img src={logo} alt="" className="h-8 w-8" />
           <div>
             <div className="font-serif text-2xl font-semibold leading-none text-brand-800">socaire</div>
-            <div className="text-[10px] uppercase tracking-[0.14em] text-brand-400">CRM interno</div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-brand-600">CRM interno</div>
           </div>
         </div>
         <div>
@@ -127,7 +123,7 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
 
-  if (!ready) return null
+  if (!ready) return <AppSkeleton />
   return (
     <ToastProvider>
       {supabase && !session ? (

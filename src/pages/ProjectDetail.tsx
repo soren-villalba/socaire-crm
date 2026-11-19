@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Plus, Clock, CheckCircle2, Circle, AlertOctagon, Loader, MoreHorizontal } from 'lucide-react'
 import { useData } from '../lib/store'
-import { Card, KV, StatusBadge, Tabs, Empty, Badge, Progress, Menu, MenuItem } from '../components/ui'
+import { Card, KV, StatusBadge, Tabs, Empty, Badge, Progress, Menu, MenuItem, clickRow } from '../components/ui'
 import { ClientLink, DueDate, UserChip } from '../components/links'
 import { useQuick, createVeleroPhases } from '../components/QuickCreate'
 import { DriveFolderButton } from '../components/drive'
@@ -210,7 +210,7 @@ export default function ProjectDetail() {
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {data.changes.map((c) => (
-                    <tr key={c.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('change', c)}>
+                    <tr key={c.id} {...clickRow(() => quick.edit('change', c))}>
                       <td className="td tnum">{fdate(c.requested_date)}</td>
                       <td className="td"><div className="font-medium text-stone-800">{c.title}</div>{c.description && <div className="text-xs text-stone-500">{c.description}</div>}</td>
                       <td className="td tnum text-right">{c.estimated_hours ?? '—'}</td>
@@ -233,7 +233,7 @@ export default function ProjectDetail() {
                   <thead className="border-b border-stone-200 bg-stone-50/60"><tr><th className="th">Fecha</th><th className="th">Quién</th><th className="th">Fase</th><th className="th">Actividad</th><th className="th text-right">Horas</th><th className="w-8"></th></tr></thead>
                   <tbody className="divide-y divide-stone-100">
                     {data.time.map((t) => (
-                      <tr key={t.id} className="hover:bg-stone-50">
+                      <tr key={t.id} {...clickRow(() => quick.edit('time', t))}>
                         <td className="td tnum">{fdate(t.date)}</td>
                         <td className="td"><UserChip id={t.user_id} /></td>
                         <td className="td text-stone-600">
@@ -242,9 +242,9 @@ export default function ProjectDetail() {
                             {data.phases.map((ph) => <option key={ph.id} value={ph.id}>{ph.letter} · {ph.name} ({ph.milestone})</option>)}
                           </select>
                         </td>
-                        <td className="td cursor-pointer text-stone-700" onClick={() => quick.edit('time', t)}>{t.activity}</td>
+                        <td className="td text-stone-700">{t.activity}</td>
                         <td className="td tnum text-right font-medium">{t.hours}</td>
-                        <td className="td"><button className="text-xs text-stone-300 hover:text-red-500" onClick={() => remove('time_entries', t.id, 'Registro')}>✕</button></td>
+                        <td className="td"><button className="text-xs text-stone-300 hover:text-red-500" aria-label="Eliminar registro" onClick={() => remove('time_entries', t.id, 'Registro')}>✕</button></td>
                       </tr>
                     ))}
                   </tbody>

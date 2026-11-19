@@ -233,3 +233,55 @@ export function KV({ label, children }: { label: string; children: ReactNode }) 
     </div>
   )
 }
+
+/**
+ * Fila de tabla que abre su registro: toda la fila es clicable (y con Enter desde el teclado),
+ * pero los clics en ligas, botones, menús o campos dentro de la fila hacen solo lo suyo.
+ */
+export function clickRow(open: () => void) {
+  return {
+    className: 'row-click',
+    tabIndex: 0,
+    onClick: (e: React.MouseEvent<HTMLElement>) => {
+      if ((e.target as HTMLElement).closest('a,button,input,select,textarea,label,[role="menu"],[role="dialog"]')) return
+      open()
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key === 'Enter' && e.target === e.currentTarget) open()
+    },
+  }
+}
+
+/** Bloque gris animado que ocupa el lugar del contenido mientras carga. */
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div aria-hidden className={`animate-pulse rounded-md bg-stone-100 ${className}`} />
+}
+
+/** Esqueleto de toda la aplicación: menú, barra superior, indicadores y una tabla. */
+export function AppSkeleton() {
+  return (
+    <div className="flex h-screen overflow-hidden bg-white" role="status" aria-label="Cargando el CRM">
+      <aside className="flex w-[220px] shrink-0 flex-col gap-5 border-r border-stone-200 bg-stone-50/60 px-3 py-4">
+        <div className="flex items-center gap-2"><Skeleton className="h-7 w-7" /><Skeleton className="h-5 w-24" /></div>
+        {[4, 3, 2].map((n, g) => (
+          <div key={g} className="space-y-2">
+            <Skeleton className="h-2.5 w-16" />
+            {Array.from({ length: n }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
+          </div>
+        ))}
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-14 items-center gap-3 border-b border-stone-200 px-5"><Skeleton className="h-9 w-[420px]" /><Skeleton className="ml-auto h-9 w-24" /></div>
+        <div className="mx-auto w-full max-w-[1400px] space-y-5 px-6 py-6">
+          <div className="space-y-2"><Skeleton className="h-6 w-48" /><Skeleton className="h-4 w-72" /></div>
+          <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+          <div className="grid gap-5 xl:grid-cols-3">
+            <div className="card space-y-3 p-4 xl:col-span-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+            <div className="card space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+          </div>
+        </div>
+      </div>
+      <span className="sr-only">Cargando…</span>
+    </div>
+  )
+}

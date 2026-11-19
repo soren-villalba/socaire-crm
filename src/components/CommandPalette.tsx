@@ -91,9 +91,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       <div className="absolute inset-0 bg-stone-900/25" onClick={onClose} />
       <div role="dialog" aria-label="Buscar" className="relative w-[620px] max-w-[95vw] overflow-hidden rounded-xl bg-white shadow-pop">
         <div className="flex items-center gap-2 border-b border-stone-100 px-4">
-          <Search size={16} className="text-stone-400" />
+          <Search size={16} className="text-stone-500" />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} placeholder="Busca clientes, contactos, oportunidades, proyectos, tareas… o escribe una acción" className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400" />
-          <kbd className="rounded border border-stone-200 px-1.5 text-[10px] text-stone-400">Esc</kbd>
+          <kbd className="rounded border border-stone-200 px-1.5 text-[10px] text-stone-500">Esc</kbd>
         </div>
         <ul className="max-h-[50vh] overflow-y-auto py-1">
           {items.length === 0 && <li className="px-4 py-6 text-center text-sm text-stone-500">Sin resultados para “{q}”.</li>}
@@ -102,11 +102,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             lastGroup = it.group
             return (
               <li key={it.group + it.id}>
-                {header && <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{header}</div>}
+                {header && <div className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500">{header}</div>}
                 <button onMouseEnter={() => setSel(i)} onClick={it.run} className={`flex w-full items-center gap-2.5 px-4 py-1.5 text-left text-sm ${i === sel ? 'bg-brand-50 text-brand-800' : 'text-stone-700'}`}>
-                  <span className="text-stone-400">{it.icon}</span>
+                  <span className="text-stone-500">{it.icon}</span>
                   <span className="truncate">{it.label}</span>
-                  {it.sub && <span className="ml-auto truncate pl-3 text-xs text-stone-400">{it.sub}</span>}
+                  {it.sub && <span className="ml-auto truncate pl-3 text-xs text-stone-500">{it.sub}</span>}
                 </button>
               </li>
             )

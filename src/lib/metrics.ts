@@ -155,7 +155,7 @@ export function pipelineSummary(db: DB) {
   const mrrOpen = open.reduce((a, o) => a + (o.estimated_mrr || 0), 0)
   const closed = live(db.opportunities).filter((o) => o.stage === 'ganada' || o.stage === 'perdida')
   const won = closed.filter((o) => o.stage === 'ganada').length
-  return { open: open.length, total, weighted, mrrOpen, winRate: closed.length ? won / closed.length : null }
+  return { open: open.length, total, weighted, mrrOpen, won, closed: closed.length, winRate: closed.length ? won / closed.length : null }
 }
 export function lastTouch(db: DB, o: Opportunity): string {
   const dates = live(db.interactions)

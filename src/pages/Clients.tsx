@@ -1,21 +1,22 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
-import { PageHeader, StatusBadge, Empty, SearchInput, Segmented } from '../components/ui'
+import { PageHeader, StatusBadge, Empty, SearchInput, Segmented, clickRow } from '../components/ui'
 import { UserChip } from '../components/links'
 import { useQuick } from '../components/QuickCreate'
 import { CLIENT_STATUS } from '../lib/constants'
 import { money, normalize } from '../lib/format'
 import { invoiceBalance, isOpen, subMonthly } from '../lib/metrics'
+import { usePersist } from '../lib/usePersist'
 
 export default function Clients() {
   const clients = useTable('clients')
   const { db, settings } = useData()
   const quick = useQuick()
   const navigate = useNavigate()
-  const [q, setQ] = useState('')
-  const [status, setStatus] = useState<string>('todos')
+  const [q, setQ] = usePersist('clientes.q', '')
+  const [status, setStatus] = usePersist<string>('clientes.status', 'todos')
 
   const rows = useMemo(() => {
     const nq = normalize(q)
@@ -78,7 +79,7 @@ export default function Clients() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {rows.map(({ c, mrr, pend, units, totalBranches, openOpps, projects, balance }) => (
-                <tr key={c.id} className="cursor-pointer hover:bg-stone-50" onClick={() => navigate(`/clientes/${c.id}`)}>
+                <tr key={c.id} {...clickRow(() => navigate(`/clientes/${c.id}`))}>
                   <td className="td font-medium text-stone-800">{c.company_name}</td>
                   <td className="td text-stone-600">{c.industry ?? '—'}</td>
                   <td className="td"><StatusBadge map={CLIENT_STATUS} value={c.status} /></td>
@@ -89,7 +90,7 @@ export default function Clients() {
                   <td className="td tnum text-right">{units || totalBranches ? `${units} de ${totalBranches || units}` : '—'}</td>
                   <td className="td tnum text-right">{openOpps || '—'}</td>
                   <td className="td tnum text-right">{projects || '—'}</td>
-                  <td className={`td tnum text-right ${balance > 0 ? 'font-medium text-amber-700' : 'text-stone-400'}`}>{balance > 0 ? money(balance) : '—'}</td>
+                  <td className={`td tnum text-right ${balance > 0 ? 'font-medium text-amber-700' : 'text-stone-500'}`}>{balance > 0 ? money(balance) : '—'}</td>
                   <td className="td"><UserChip id={c.account_manager_id} showName={false} /></td>
                 </tr>
               ))}

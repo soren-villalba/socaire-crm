@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
-import { PageHeader, Tabs, Card, Stat, Badge, Empty, Progress } from '../components/ui'
+import { PageHeader, Tabs, Card, Stat, Badge, Empty, Progress, clickRow } from '../components/ui'
 import { ClientLink } from '../components/links'
 import { useQuick } from '../components/QuickCreate'
 import { InvoicesTable, PaymentsTable, SubscriptionsTable } from '../components/tables'
@@ -193,7 +193,7 @@ export default function Finance() {
                         <td className="td tnum text-right">{total}</td>
                         <td className="td"><Progress pct={(s.quantity / total) * 100} /></td>
                         <td className="td tnum text-right">{money(subUnitPrice(db, s, settings))}</td>
-                        <td className="td text-xs text-stone-600">{ref.count} de {settings.referral_steps.length}{windowEnd && <span className="text-stone-400"> · ventana hasta {fdate(windowEnd)}</span>}</td>
+                        <td className="td text-xs text-stone-600">{ref.count} de {settings.referral_steps.length}{windowEnd && <span className="text-stone-500"> · ventana hasta {fdate(windowEnd)}</span>}</td>
                       </tr>
                     )
                   })}
@@ -209,7 +209,7 @@ export default function Finance() {
                   <thead className="border-b border-stone-200 bg-stone-50/60"><tr><th className="th">Recomendó</th><th className="th">Referido</th><th className="th">Firmó</th><th className="th">Primer pago</th><th className="th">Estado</th></tr></thead>
                   <tbody className="divide-y divide-stone-100">
                     {referrals.map((r) => (
-                      <tr key={r.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('referral', r)}>
+                      <tr key={r.id} {...clickRow(() => quick.edit('referral', r))}>
                         <td className="td"><ClientLink id={r.referrer_client_id} /></td>
                         <td className="td"><ClientLink id={r.referred_client_id} /></td>
                         <td className="td tnum">{fdate(r.signed_date)}</td>

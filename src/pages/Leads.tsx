@@ -2,20 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRightCircle, MoreHorizontal, Plus } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
-import { PageHeader, StatusBadge, Empty, Modal, Menu, MenuItem, SearchInput, Segmented } from '../components/ui'
+import { PageHeader, StatusBadge, Empty, Modal, Menu, MenuItem, SearchInput, Segmented, clickRow } from '../components/ui'
 import { UserChip } from '../components/links'
 import { useQuick } from '../components/QuickCreate'
 import { LEAD_STATUS, SOURCES, SERVICE_TYPES } from '../lib/constants'
 import { addBusinessDays, fdate, normalize, todayISO } from '../lib/format'
 import type { Lead, ServiceType } from '../lib/types'
+import { usePersist } from '../lib/usePersist'
 
 export default function Leads() {
   const leads = useTable('leads')
   const quick = useQuick()
   const { remove } = useData()
   const [params, setParams] = useSearchParams()
-  const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<'abiertos' | 'convertido' | 'descartado' | 'todos'>('abiertos')
+  const [q, setQ] = usePersist('prospectos.q', '')
+  const [filter, setFilter] = usePersist<'abiertos' | 'convertido' | 'descartado' | 'todos'>('prospectos.filtro', 'abiertos')
   const [convert, setConvert] = useState<Lead | null>(null)
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function Leads() {
             </thead>
             <tbody className="divide-y divide-stone-100">
               {rows.map((l) => (
-                <tr key={l.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('lead', l)}>
+                <tr key={l.id} {...clickRow(() => quick.edit('lead', l))}>
                   <td className="td font-medium text-stone-800">{l.name}</td>
                   <td className="td text-stone-600">{l.company ?? '—'}</td>
                   <td className="td text-stone-600">{[l.phone, l.email].filter(Boolean).join(' · ') || '—'}</td>
