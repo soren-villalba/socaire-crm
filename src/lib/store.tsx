@@ -3,7 +3,7 @@ import type { Backend } from './backend'
 import { LocalBackend, SupabaseBackend, supabase } from './backend'
 import type { DB, Profile, TableName, Tables } from './types'
 import { emptyDB } from './types'
-import { DEFAULT_SETTINGS, type Settings } from './constants'
+import { DEFAULT_GOALS, DEFAULT_SETTINGS, type Goal, type Settings } from './constants'
 import { useToast } from '../components/Toast'
 
 interface Ctx {
@@ -14,6 +14,8 @@ interface Ctx {
   me: Profile | null
   setMe: (id: string) => void
   settings: Settings
+  goals: Goal[]
+  saveGoals: (items: Goal[]) => Promise<void>
   byId: <T extends TableName>(table: T, id?: string | null) => Tables[T] | undefined
   insert: <T extends TableName>(table: T, row: Partial<Tables[T]>, opts?: { silent?: boolean }) => Promise<Tables[T]>
   update: <T extends TableName>(table: T, id: string, patch: Partial<Tables[T]>, opts?: { silent?: boolean }) => Promise<Tables[T]>
@@ -146,6 +148,9 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
     return { ...DEFAULT_SETTINGS, ...((row?.value as Partial<Settings>) ?? {}) }
   }, [db.settings])
 
+  const goalsRow = db.settings.find((s) => s.key === 'goals' && !s.deleted_at)
+  const goals = useMemo<Goal[]>(() => ((goalsRow?.value as { items?: Goal[] } | undefined)?.items ?? DEFAULT_GOALS), [goalsRow])
+
   const index = useMemo(() => {
     const m = new Map<string, unknown>()
     for (const k of Object.keys(db) as (keyof DB)[]) for (const r of db[k] as { id: string }[]) m.set(`${k}:${r.id}`, r)
@@ -230,6 +235,14 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
     [backend, me?.id, toast],
   )
 
+  const saveGoals = useCallback(
+    async (items: Goal[]) => {
+      if (goalsRow) await update('settings', goalsRow.id, { value: { items } }, { silent: true })
+      else await insert('settings', { key: 'goals', value: { items } }, { silent: true })
+    },
+    [goalsRow, insert, update],
+  )
+
   const can = useCallback(
     (perm: Perm) => {
       const roles = me?.roles ?? []
@@ -247,6 +260,6 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
     [me],
   )
 
-  const value: Ctx = { db, loading, error, backend, me, setMe, settings, byId, insert, update, remove, reload, refresh, lastSync, syncing, can }
+  const value: Ctx = { db, loading, error, backend, me, setMe, settings, goals, saveGoals, byId, insert, update, remove, reload, refresh, lastSync, syncing, can }
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>
 }

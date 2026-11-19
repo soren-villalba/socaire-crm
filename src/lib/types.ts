@@ -335,6 +335,64 @@ export interface DocumentRec extends Base {
   notes?: string | null
 }
 
+export type ExpenseCategory = string
+export interface Expense extends Base {
+  expense_date: ISODate
+  vendor?: string | null
+  concept: string
+  category: ExpenseCategory
+  kind: 'directo' | 'operativo'
+  client_id?: ID | null
+  project_id?: ID | null
+  product_id?: ID | null
+  asset_id?: ID | null
+  subtotal: number
+  tax: number
+  total: number
+  status: 'pagado' | 'pendiente'
+  due_date?: ISODate | null
+  method?: 'transferencia' | 'efectivo' | 'tarjeta' | 'otro' | null
+  cfdi_folio?: string | null
+  notes?: string | null
+}
+
+export type AssetKind = 'dominio' | 'hosting' | 'base_datos' | 'repositorio' | 'correo' | 'software' | 'api' | 'diseno' | 'otro'
+export interface Asset extends Base {
+  name: string
+  kind: AssetKind
+  provider?: string | null
+  url?: string | null
+  account?: string | null // correo o usuario de acceso, NUNCA contraseña
+  product_id?: ID | null
+  client_id?: ID | null
+  cost_type: 'mensual' | 'anual' | 'por_cliente' | 'unico' | 'gratis'
+  cost: number
+  renewal_date?: ISODate | null
+  status: 'activo' | 'cancelado'
+  notes?: string | null
+}
+
+export type ContractStatus = 'borrador' | 'enviado' | 'firmado' | 'terminado'
+export interface Contract extends Base {
+  client_id: ID
+  subscription_id?: ID | null
+  project_id?: ID | null
+  quote_id?: ID | null
+  title: string
+  kind: 'servicio_saas' | 'desarrollo' | 'nda' | 'datos' | 'otro'
+  status: ContractStatus
+  sent_date?: ISODate | null
+  signed_date?: ISODate | null
+  start_date?: ISODate | null
+  min_term_months: number
+  auto_renew: boolean
+  renewal_notice_days: number
+  setup_fee_waived: number // alta bonificada que se cobra si cancela antes de la permanencia
+  terminated_date?: ISODate | null
+  document_url?: string | null
+  notes?: string | null
+}
+
 export interface AuditLog {
   id: ID
   table_name: string
@@ -348,6 +406,31 @@ export interface AuditLog {
 export interface Setting extends Base {
   key: string
   value: unknown
+}
+
+// ---------- Entrega C ----------
+export interface TicketEvent extends Base {
+  ticket_id: ID
+  kind: 'respuesta' | 'cliente' | 'nota' | 'estado'
+  body: string
+}
+export interface ChecklistItem extends Base {
+  client_id: ID
+  project_id?: ID | null
+  list: 'onboarding' | 'cierre'
+  sort: number
+  phase?: string | null
+  label: string
+  done: boolean
+  done_at?: ISODateTime | null
+  notes?: string | null
+}
+export interface WeeklyReview extends Base {
+  week_start: ISODate
+  wins?: string | null
+  blockers?: string | null
+  priorities?: string | null
+  snapshot: Record<string, number>
 }
 
 export interface Tables {
@@ -372,6 +455,12 @@ export interface Tables {
   interactions: Interaction
   tickets: Ticket
   documents: DocumentRec
+  expenses: Expense
+  assets: Asset
+  contracts: Contract
+  ticket_events: TicketEvent
+  checklist_items: ChecklistItem
+  weekly_reviews: WeeklyReview
   settings: Setting
 }
 
@@ -379,7 +468,7 @@ export type TableName = keyof Tables
 export const TABLES: TableName[] = [
   'profiles', 'clients', 'contacts', 'branches', 'leads', 'opportunities', 'products', 'quotes',
   'quote_items', 'subscriptions', 'referrals', 'invoices', 'payments', 'projects', 'project_phases',
-  'change_requests', 'time_entries', 'tasks', 'interactions', 'tickets', 'documents', 'settings',
+  'change_requests', 'time_entries', 'tasks', 'interactions', 'tickets', 'documents', 'expenses', 'assets', 'contracts', 'ticket_events', 'checklist_items', 'weekly_reviews', 'settings',
 ]
 
 export type DB = { [K in TableName]: Tables[K][] } & { audit_logs: AuditLog[] }

@@ -22,6 +22,8 @@ import Finance from './pages/Finance'
 import Support from './pages/Support'
 import Documents from './pages/Documents'
 import SettingsPage from './pages/Settings'
+import Reports from './pages/Reports'
+import WeeklyReview from './pages/WeeklyReview'
 
 // Versión de un solo archivo (se abre con doble clic): usa rutas con # porque no hay servidor.
 const Router = import.meta.env.MODE === 'archivo' ? HashRouter : BrowserRouter
@@ -57,6 +59,8 @@ function Shell() {
           <Route path="finanzas" element={<Finance />} />
           <Route path="soporte" element={<Support />} />
           <Route path="documentos" element={<Documents />} />
+          <Route path="reportes" element={<Reports />} />
+          <Route path="revision" element={<WeeklyReview />} />
           <Route path="configuracion" element={<SettingsPage />} />
           <Route path="*" element={<div className="text-stone-500">Página no encontrada.</div>} />
         </Route>

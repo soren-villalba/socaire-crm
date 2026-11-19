@@ -3,14 +3,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, UserPlus, Target, FileSpreadsheet, Building2, FolderKanban, CheckSquare, LifeBuoy, Wallet, FileText,
-  Settings, Search, Plus, PanelLeftClose, PanelLeftOpen, LogOut, ChevronDown, RefreshCw,
+  Settings, Search, Plus, PanelLeftClose, PanelLeftOpen, LogOut, ChevronDown, RefreshCw, BarChart3, CalendarCheck,
 } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { CommandPalette } from './CommandPalette'
 import { useQuick } from './QuickCreate'
 import { Avatar, Menu, MenuItem } from './ui'
 import { buildAlerts, taskOverdue } from '../lib/metrics'
-import { supabase } from '../lib/backend'
+import { missingTables, supabase } from '../lib/backend'
 
 function Logo({ collapsed }: { collapsed: boolean }) {
   return (
@@ -114,12 +114,14 @@ export function Layout() {
         { to: '/proyectos', label: 'Proyectos', icon: <FolderKanban size={17} /> },
         { to: '/tareas', label: 'Tareas', icon: <CheckSquare size={17} />, badge: myOverdue },
         { to: '/soporte', label: 'Soporte', icon: <LifeBuoy size={17} />, badge: openTickets },
+        { to: '/revision', label: 'Revisión semanal', icon: <CalendarCheck size={17} /> },
       ],
     },
     {
       title: 'Administración',
       items: [
         { to: '/finanzas', label: 'Finanzas', icon: <Wallet size={17} /> },
+        { to: '/reportes', label: 'Reportes', icon: <BarChart3 size={17} /> },
         { to: '/documentos', label: 'Documentos', icon: <FileText size={17} /> },
       ],
     },
@@ -234,6 +236,9 @@ export function Layout() {
                       ['project', 'Proyecto'],
                       ['payment', 'Pago recibido'],
                       ['invoice', 'Factura (CFDI)'],
+                      ['expense', 'Gasto'],
+                      ['contract', 'Contrato'],
+                      ['asset', 'Servicio (dominio, hosting…)'],
                       ['time', 'Horas'],
                       ['ticket', 'Ticket de soporte'],
                     ] as const
@@ -247,6 +252,11 @@ export function Layout() {
             </Menu>
           </div>
         </header>
+        {backend.mode === 'supabase' && missingTables.size > 0 && (
+          <div className="border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-800">
+            Falta preparar la base de datos: corre {[...new Set([...missingTables].map((t) => (['expenses', 'assets', 'contracts'].includes(t) ? '0005_finanzas_contratos_metas.sql' : '0006_soporte_checklists_revision.sql')))].sort().map((f, i) => <span key={f}>{i > 0 && ' y luego '}<code className="rounded bg-amber-100 px-1">{f}</code></span>)} en el SQL Editor de Supabase. Lo demás funciona normal.
+          </div>
+        )}
         {error && <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-sm text-red-700">Error al cargar datos: {error}</div>}
         <main key={location.pathname} ref={mainRef} onScroll={(e) => scrollPos.set(location.pathname, e.currentTarget.scrollTop)} className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1400px] px-6 py-6">

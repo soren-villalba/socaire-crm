@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Download, Upload, RotateCcw } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { PageHeader, Tabs, Card, Badge, Confirm, Empty, clickRow } from '../components/ui'
+import { GoalsEditor } from '../components/goals'
 import { useQuick } from '../components/QuickCreate'
 import { useToast } from '../components/Toast'
 import { ROLES, DEFAULT_SETTINGS, type Settings } from '../lib/constants'
@@ -10,13 +11,13 @@ import { LocalBackend, importToSupabase, supabase } from '../lib/backend'
 import { TABLES, type DB } from '../lib/types'
 import { usePersist } from '../lib/usePersist'
 
-type TabKey = 'usuarios' | 'catalogo' | 'parametros' | 'datos' | 'auditoria'
+type TabKey = 'usuarios' | 'catalogo' | 'parametros' | 'metas' | 'datos' | 'auditoria'
 
 const TABLE_LABELS: Record<string, string> = {
   profiles: 'Usuarios', clients: 'Clientes', contacts: 'Contactos', branches: 'Sucursales', leads: 'Prospectos', opportunities: 'Oportunidades', products: 'Productos',
   quotes: 'Cotizaciones', quote_items: 'Conceptos de cotización', subscriptions: 'Suscripciones', referrals: 'Referidos', invoices: 'Facturas', payments: 'Pagos',
   projects: 'Proyectos', project_phases: 'Fases', change_requests: 'Cambios', time_entries: 'Horas', tasks: 'Tareas', interactions: 'Interacciones', tickets: 'Tickets',
-  documents: 'Documentos', settings: 'Parámetros',
+  documents: 'Documentos', expenses: 'Gastos', assets: 'Servicios y renovaciones', contracts: 'Contratos', ticket_events: 'Historial de tickets', checklist_items: 'Checklists', weekly_reviews: 'Revisiones semanales', settings: 'Parámetros',
 }
 
 export default function SettingsPage() {
@@ -118,6 +119,7 @@ export default function SettingsPage() {
           { key: 'usuarios', label: 'Usuarios y roles' },
           { key: 'catalogo', label: 'Catálogo de servicios' },
           { key: 'parametros', label: 'Parámetros' },
+          { key: 'metas', label: 'Metas' },
           { key: 'datos', label: 'Datos y respaldos' },
           { key: 'auditoria', label: 'Registro de cambios' },
         ]}
@@ -187,6 +189,11 @@ export default function SettingsPage() {
               </div>
               {numField('fixed_cost_per_package', 'Costo fijo por paquete (mensual)', 'Netlify + Supabase + dominio')}
               {numField('branches_per_package', 'Sucursales por paquete')}
+              {numField('sla_alta_hours', 'SLA prioridad alta (h hábiles)', 'Primera respuesta')}
+              {numField('sla_media_hours', 'SLA prioridad media (h hábiles)')}
+              {numField('sla_baja_hours', 'SLA prioridad baja (h hábiles)')}
+              {numField('business_start_hour', 'Inicio del horario hábil (hora)', 'Lunes a viernes')}
+              {numField('business_end_hour', 'Fin del horario hábil (hora)')}
             </div>
             <div className="mt-4 flex gap-2">
               <button className="btn-primary" onClick={saveSettings} disabled={!can('finance.manage')}>Guardar parámetros</button>
@@ -194,6 +201,8 @@ export default function SettingsPage() {
             </div>
           </Card>
         )}
+
+        {tab === 'metas' && <GoalsEditor />}
 
         {tab === 'datos' && (
           <div className="grid gap-5 lg:grid-cols-2">

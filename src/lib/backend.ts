@@ -30,6 +30,10 @@ export interface Backend {
 
 const LS_KEY = 'socaire-crm-db-v1'
 
+/** Tablas nuevas que dependen de correr un script SQL (0005). Si faltan, no se cae todo el CRM. */
+export const OPTIONAL_TABLES: TableName[] = ['expenses', 'assets', 'contracts', 'ticket_events', 'checklist_items', 'weekly_reviews']
+export const missingTables = new Set<TableName>()
+
 
 function summarize(_table: string, row: Record<string, unknown>): string {
   return String(row.title ?? row.company_name ?? row.name ?? row.folio ?? row.concept ?? row.summary ?? row.milestone_name ?? row.key ?? '')
@@ -127,9 +131,15 @@ export class SupabaseBackend implements Backend {
 
   async loadAll(): Promise<DB> {
     const db = emptyDB()
+    missingTables.clear()
     await Promise.all(
       TABLES.map(async (t) => {
         const { data, error } = await this.sb.from(t).select('*').limit(10000)
+        // Tablas de una entrega cuyo script SQL aún no se corre: el CRM sigue funcionando sin ellas.
+        if (error && OPTIONAL_TABLES.includes(t)) {
+          missingTables.add(t)
+          return
+        }
         if (error) throw new Error(`${t}: ${error.message}`)
         ;(db as Record<string, unknown[]>)[t] = data ?? []
       }),
@@ -154,6 +164,7 @@ export class SupabaseBackend implements Backend {
     delete clean.id
     delete clean.created_at
     delete clean.updated_at
+    for (const k of Object.keys(clean)) if (k.startsWith('__')) delete clean[k]
     const { data, error } = await this.sb.from(table).update(clean).eq('id', id).select().single()
     if (error) throw new Error(error.message)
     return data as Tables[T]
@@ -215,6 +226,12 @@ export async function importToSupabase(sb: SupabaseClient, data: DB, profileMap:
   await up('interactions', d.interactions)
   await up('tickets', d.tickets)
   await up('documents', d.documents)
+  await up('assets', d.assets ?? [])
+  await up('expenses', d.expenses ?? [])
+  await up('contracts', d.contracts ?? [])
+  await up('ticket_events', d.ticket_events ?? [])
+  await up('checklist_items', d.checklist_items ?? [])
+  await up('weekly_reviews', d.weekly_reviews ?? [])
   const app = d.settings.find((s) => s.key === 'app')
   if (app) {
     const { error } = await sb.from('settings').update({ value: app.value }).eq('key', 'app')

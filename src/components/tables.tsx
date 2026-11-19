@@ -1,4 +1,5 @@
 // Tablas reutilizadas en varias pantallas (ficha de cliente, finanzas, proyectos, soporte…)
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Circle, CheckCircle2, ExternalLink, FolderOpen, MoreHorizontal, Copy } from 'lucide-react'
 import { useData } from '../lib/store'
@@ -7,6 +8,7 @@ import { ClientLink, DueDate, UserChip } from './links'
 import { useQuick } from './QuickCreate'
 import { useToast } from './Toast'
 import { DriveIcon } from './drive'
+import { SlaBadge, TicketDrawer } from './support'
 import { looksLikeUrl, parseDrive, safeHttpsUrl } from '../lib/drive'
 import type { DocumentRec, Invoice, Payment, Project, Subscription, Task, Ticket } from '../lib/types'
 import { DOC_KINDS, DOC_STATUS, PAY_STATUS, PAYMENT_METHODS, PRIORITY, PROJECT_STATUS, SUB_STATUS, TICKET_STATUS, TASK_KINDS } from '../lib/constants'
@@ -235,36 +237,42 @@ export function ProjectsTable({ rows, showClient = true }: { rows: Project[]; sh
   )
 }
 
-export function TicketsTable({ rows, showClient = true }: { rows: Ticket[]; showClient?: boolean }) {
-  const quick = useQuick()
+export function TicketsTable({ rows, showClient = true, onOpen }: { rows: Ticket[]; showClient?: boolean; onOpen?: (t: Ticket) => void }) {
+  const [open, setOpen] = useState<Ticket | null>(null)
   if (!rows.length) return <Empty title="Sin tickets">Registra incidencias, dudas y solicitudes de clientes. Si es una mejora, pásala a cambio de alcance (SOP 6).</Empty>
+  const openTicket = onOpen ?? setOpen
   return (
-    <table className="w-full text-sm">
-      <thead className="border-b border-stone-200 bg-stone-50/60">
-        <tr>
-          <th className="th">Asunto</th>
-          {showClient && <th className="th">Cliente</th>}
-          <th className="th">Categoría</th>
-          <th className="th">Prioridad</th>
-          <th className="th">Estado</th>
-          <th className="th">Abierto</th>
-          <th className="th">Resp.</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-stone-100">
-        {rows.map((t) => (
-          <tr key={t.id} {...clickRow(() => quick.edit('ticket', t))}>
-            <td className="td font-medium text-stone-800">{t.title}</td>
-            {showClient && <td className="td"><ClientLink id={t.client_id} /></td>}
-            <td className="td capitalize text-stone-600">{t.category}</td>
-            <td className="td"><StatusBadge map={PRIORITY} value={t.priority} /></td>
-            <td className="td"><StatusBadge map={TICKET_STATUS} value={t.status} /></td>
-            <td className="td tnum text-stone-600">{fdate(t.created_at.slice(0, 10))}</td>
-            <td className="td"><UserChip id={t.assigned_to} showName={false} /></td>
+    <>
+      <table className="w-full text-sm">
+        <thead className="border-b border-stone-200 bg-stone-50/60">
+          <tr>
+            <th className="th">Asunto</th>
+            {showClient && <th className="th">Cliente</th>}
+            <th className="th">Categoría</th>
+            <th className="th">Prioridad</th>
+            <th className="th">Estado</th>
+            <th className="th">SLA</th>
+            <th className="th">Abierto</th>
+            <th className="th">Resp.</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="divide-y divide-stone-100">
+          {rows.map((t) => (
+            <tr key={t.id} {...clickRow(() => openTicket(t))}>
+              <td className="td font-medium text-stone-800">{t.title}</td>
+              {showClient && <td className="td"><ClientLink id={t.client_id} /></td>}
+              <td className="td capitalize text-stone-600">{t.category}</td>
+              <td className="td"><StatusBadge map={PRIORITY} value={t.priority} /></td>
+              <td className="td"><StatusBadge map={TICKET_STATUS} value={t.status} /></td>
+              <td className="td"><SlaBadge t={t} /></td>
+              <td className="td tnum text-stone-600">{fdate(t.created_at.slice(0, 10))}</td>
+              <td className="td"><UserChip id={t.assigned_to} showName={false} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!onOpen && <TicketDrawer key={open?.id ?? 'none'} ticket={open} onClose={() => setOpen(null)} />}
+    </>
   )
 }
 

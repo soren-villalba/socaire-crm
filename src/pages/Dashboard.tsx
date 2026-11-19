@@ -9,6 +9,7 @@ import { buildAlerts, distribution, expectedCharges, mrr, pipelineSummary, proje
 import { addDays, fdate, fdatetime, money, todayISO, parseISO, toISO } from '../lib/format'
 import { STAGES, OPEN_STAGES } from '../lib/constants'
 import { usePersist } from '../lib/usePersist'
+import { GoalsCard } from '../components/goals'
 
 const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
@@ -247,6 +248,8 @@ export default function Dashboard() {
           </div>
           <div className="mt-3"><Progress pct={(myWeek / settings.weekly_capacity_hours) * 100} tone={myWeek > settings.weekly_capacity_hours ? 'red' : 'brand'} /></div>
         </Card>
+
+        <GoalsCard className="lg:col-span-2 xl:col-span-3" />
 
         <Card title="Actividad reciente" className="lg:col-span-2 xl:col-span-3" bodyClass="">
           {recent.length === 0 ? (
