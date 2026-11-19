@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
@@ -7,14 +7,15 @@ import { DocumentsTable } from '../components/tables'
 import { useQuick } from '../components/QuickCreate'
 import { DOC_KINDS } from '../lib/constants'
 import { normalize } from '../lib/format'
+import { usePersist } from '../lib/usePersist'
 
 export default function Documents() {
   const docs = useTable('documents')
   const { db } = useData()
   const quick = useQuick()
   const [params, setParams] = useSearchParams()
-  const [q, setQ] = useState('')
-  const [kind, setKind] = useState('')
+  const [q, setQ] = usePersist('documentos.q', '')
+  const [kind, setKind] = usePersist('documentos.kind', '')
 
   useEffect(() => {
     const id = params.get('d')

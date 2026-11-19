@@ -19,6 +19,10 @@ interface Ctx {
   update: <T extends TableName>(table: T, id: string, patch: Partial<Tables[T]>, opts?: { silent?: boolean }) => Promise<Tables[T]>
   remove: (table: TableName, id: string, label?: string) => Promise<void>
   reload: () => Promise<void>
+  /** Trae los cambios que hizo otra persona, sin pantalla de carga. */
+  refresh: () => Promise<void>
+  lastSync: number | null
+  syncing: boolean
   can: (perm: Perm) => boolean
 }
 
@@ -54,13 +58,21 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
     }
   })
   const toast = useToast()
+  const [lastSync, setLastSync] = useState<number | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  // Escrituras en curso: mientras haya alguna, no se refresca para no pisar el cambio optimista.
+  const pending = useRef(0)
+  const snapshot = useRef('')
+  const refreshing = useRef(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
     try {
       const data = await backend.loadAll()
+      snapshot.current = JSON.stringify(data)
       setDb(data)
       setError(null)
+      setLastSync(Date.now())
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -68,9 +80,51 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
     }
   }, [backend])
 
+  const refresh = useCallback(async () => {
+    if (refreshing.current || pending.current > 0) return
+    refreshing.current = true
+    setSyncing(true)
+    try {
+      const data = await backend.loadAll()
+      const snap = JSON.stringify(data)
+      // Solo se vuelve a pintar si de verdad cambió algo.
+      if (pending.current === 0 && snap !== snapshot.current) {
+        snapshot.current = snap
+        setDb(data)
+      }
+      setError(null)
+      setLastSync(Date.now())
+    } catch {
+      /* sin conexión: se reintenta en el siguiente ciclo */
+    } finally {
+      refreshing.current = false
+      setSyncing(false)
+    }
+  }, [backend])
+
   useEffect(() => {
     void reload()
   }, [reload])
+
+  // Datos al día entre usuarios: al volver a la pestaña y cada minuto mientras está visible.
+  useEffect(() => {
+    const visible = () => document.visibilityState === 'visible'
+    let last = Date.now()
+    const tick = (minGap: number) => {
+      if (!visible() || Date.now() - last < minGap) return
+      last = Date.now()
+      void refresh()
+    }
+    const onFocus = () => tick(10_000)
+    const timer = window.setInterval(() => tick(55_000), 60_000)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [refresh])
 
   const profiles = db.profiles.filter((p) => !p.deleted_at)
   const me = useMemo(() => {
@@ -105,6 +159,7 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
 
   const insert = useCallback(
     async <T extends TableName>(table: T, row: Partial<Tables[T]>, opts?: { silent?: boolean }) => {
+      pending.current++
       try {
         const saved = await backend.insert(table, row, me?.id)
         setDb((prev) => ({ ...prev, [table]: [...(prev[table] as Tables[T][]), saved] }))
@@ -113,6 +168,8 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
       } catch (e) {
         toast.error(`No se pudo guardar: ${(e as Error).message}`)
         throw e
+      } finally {
+        pending.current--
       }
     },
     [backend, me?.id, toast],
@@ -127,6 +184,7 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
         before = list.find((r) => r.id === id)
         return { ...prev, [table]: list.map((r) => (r.id === id ? { ...r, ...patch } : r)) }
       })
+      pending.current++
       try {
         const saved = await backend.update(table, id, patch, me?.id)
         setDb((prev) => ({ ...prev, [table]: (prev[table] as Tables[T][]).map((r) => (r.id === id ? saved : r)) }))
@@ -139,6 +197,8 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
         }
         toast.error(`No se pudo guardar: ${(e as Error).message}`)
         throw e
+      } finally {
+        pending.current--
       }
     },
     [backend, me?.id, toast],
@@ -150,6 +210,7 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
       const mark = (val: string | null) =>
         setDb((prev) => ({ ...prev, [table]: (prev[table] as { id: string }[]).map((r) => (r.id === id ? { ...r, deleted_at: val } : r)) }))
       mark(stamp)
+      pending.current++
       try {
         await backend.remove(table, id, me?.id)
         toast.success(`${label} eliminado`, {
@@ -162,6 +223,8 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
       } catch (e) {
         mark(null)
         toast.error(`No se pudo eliminar: ${(e as Error).message}`)
+      } finally {
+        pending.current--
       }
     },
     [backend, me?.id, toast],
@@ -184,6 +247,6 @@ export function DataProvider({ children, authUserId }: { children: ReactNode; au
     [me],
   )
 
-  const value: Ctx = { db, loading, error, backend, me, setMe, settings, byId, insert, update, remove, reload, can }
+  const value: Ctx = { db, loading, error, backend, me, setMe, settings, byId, insert, update, remove, reload, refresh, lastSync, syncing, can }
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>
 }

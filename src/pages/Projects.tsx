@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { useTable } from '../lib/store'
 import { PageHeader, Segmented } from '../components/ui'
 import { ProjectsTable } from '../components/tables'
 import { useQuick } from '../components/QuickCreate'
+import { usePersist } from '../lib/usePersist'
 
 export default function Projects() {
   const projects = useTable('projects')
   const quick = useQuick()
-  const [f, setF] = useState<'activos' | 'todos'>('activos')
+  const [f, setF] = usePersist<'activos' | 'todos'>('proyectos.filtro', 'activos')
   const rows = useMemo(
     () => projects.filter((p) => f === 'todos' || p.status === 'en_curso' || p.status === 'planeacion' || p.status === 'en_pausa').sort((a, b) => (a.go_live_date ?? '9').localeCompare(b.go_live_date ?? '9')),
     [projects, f],

@@ -1,19 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
-import { PageHeader, StatusBadge, Empty, SearchInput, Segmented } from '../components/ui'
+import { PageHeader, StatusBadge, Empty, SearchInput, Segmented, clickRow } from '../components/ui'
 import { ClientLink } from '../components/links'
 import { QUOTE_STATUS } from '../lib/constants'
 import { fdate, money, normalize } from '../lib/format'
 import { quoteEffectiveStatus, quoteTotals } from '../lib/metrics'
+import { usePersist } from '../lib/usePersist'
 
 export default function Quotes() {
   const quotes = useTable('quotes')
   const { db } = useData()
   const navigate = useNavigate()
-  const [q, setQ] = useState('')
-  const [filter, setFilter] = useState<'vigentes' | 'todas'>('vigentes')
+  const [q, setQ] = usePersist('cotizaciones.q', '')
+  const [filter, setFilter] = usePersist<'vigentes' | 'todas'>('cotizaciones.filtro', 'vigentes')
 
   const rows = useMemo(() => {
     const nq = normalize(q)
@@ -59,9 +60,9 @@ export default function Quotes() {
               {rows.map((x) => {
                 const t = quoteTotals(db.quote_items.filter((i) => i.quote_id === x.id))
                 return (
-                  <tr key={x.id} className="cursor-pointer hover:bg-stone-50" onClick={() => navigate(`/cotizaciones/${x.id}`)}>
+                  <tr key={x.id} {...clickRow(() => navigate(`/cotizaciones/${x.id}`))}>
                     <td className="td font-medium text-stone-800">
-                      {x.folio} <span className="text-xs font-normal text-stone-400">v{x.version}</span>
+                      {x.folio} <span className="text-xs font-normal text-stone-500">v{x.version}</span>
                     </td>
                     <td className="td"><ClientLink id={x.client_id} /></td>
                     <td className="td max-w-[280px] truncate text-stone-600">{x.title ?? '—'}</td>

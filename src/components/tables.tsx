@@ -1,8 +1,8 @@
 // Tablas reutilizadas en varias pantallas (ficha de cliente, finanzas, proyectos, soporte…)
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Circle, CheckCircle2, ExternalLink, FolderOpen, MoreHorizontal, Copy } from 'lucide-react'
 import { useData } from '../lib/store'
-import { Empty, StatusBadge, Badge, Menu, MenuItem, Progress } from './ui'
+import { Empty, StatusBadge, Badge, Menu, MenuItem, Progress, clickRow } from './ui'
 import { ClientLink, DueDate, UserChip } from './links'
 import { useQuick } from './QuickCreate'
 import { useToast } from './Toast'
@@ -37,14 +37,14 @@ export function InvoicesTable({ rows, showClient = true }: { rows: Invoice[]; sh
           const bal = invoiceBalance(db, i)
           const st = invoicePayState(db, i)
           return (
-            <tr key={i.id} className="hover:bg-stone-50">
-              <td className="td font-medium">{i.folio ?? <span className="text-stone-400">s/folio</span>}</td>
+            <tr key={i.id} {...clickRow(() => quick.edit('invoice', i))}>
+              <td className="td font-medium">{i.folio ?? <span className="text-stone-500">s/folio</span>}</td>
               {showClient && <td className="td"><ClientLink id={i.client_id} /></td>}
-              <td className="td max-w-[260px] truncate text-stone-600">{i.concept}{i.period && <span className="ml-1 text-xs text-stone-400">({i.period})</span>}</td>
+              <td className="td max-w-[260px] truncate text-stone-600">{i.concept}{i.period && <span className="ml-1 text-xs text-stone-500">({i.period})</span>}</td>
               <td className="td tnum text-stone-600">{fdate(i.issue_date)}</td>
               <td className="td"><DueDate date={i.due_date} done={bal <= 0 || i.status !== 'emitida'} /></td>
               <td className="td tnum text-right">{money(i.total, true)}</td>
-              <td className={`td tnum text-right ${bal > 0 ? 'font-medium' : 'text-stone-400'}`}>{money(bal, true)}</td>
+              <td className={`td tnum text-right ${bal > 0 ? 'font-medium' : 'text-stone-500'}`}>{money(bal, true)}</td>
               <td className="td"><StatusBadge map={PAY_STATUS} value={st} /></td>
               <td className="td">
                 <Menu trigger={<button className="btn-ghost px-1" aria-label="Acciones"><MoreHorizontal size={16} /></button>}>
@@ -83,7 +83,7 @@ export function PaymentsTable({ rows, showClient = true }: { rows: Payment[]; sh
       </thead>
       <tbody className="divide-y divide-stone-100">
         {rows.map((p) => (
-          <tr key={p.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('payment', p)}>
+          <tr key={p.id} {...clickRow(() => quick.edit('payment', p))}>
             <td className="td tnum">{fdate(p.payment_date)}</td>
             {showClient && <td className="td"><ClientLink id={p.client_id} /></td>}
             <td className="td text-stone-600">{byId('invoices', p.invoice_id)?.folio ?? (p.invoice_id ? 's/folio' : 'Sin factura')}</td>
@@ -121,13 +121,13 @@ export function SubscriptionsTable({ rows, showClient = true }: { rows: Subscrip
           const unit = subUnitPrice(db, s, settings)
           const ref = referralDiscount(db, s, settings)
           return (
-            <tr key={s.id} className="hover:bg-stone-50">
+            <tr key={s.id} {...clickRow(() => quick.edit('subscription', s))}>
               {showClient && <td className="td"><ClientLink id={s.client_id} /></td>}
               <td className="td font-medium">{byId('products', s.product_id)?.name}</td>
               <td className="td tnum text-right">{s.quantity}</td>
               <td className="td tnum text-right">
                 {money(unit)}
-                {s.list_price > unit && <div className="text-xs text-stone-400 line-through">{money(s.list_price)}</div>}
+                {s.list_price > unit && <div className="text-xs text-stone-500 line-through">{money(s.list_price)}</div>}
                 {ref.count > 0 && <div className="text-xs text-emerald-600">−{money(ref.discount)} por {ref.count} referido(s)</div>}
               </td>
               <td className="td tnum text-right font-semibold">{money(unit * s.quantity)}</td>
@@ -171,7 +171,7 @@ export function TaskList({ rows, showClient = true, empty = 'Sin tareas' }: { ro
               {done ? <CheckCircle2 size={17} /> : <Circle size={17} />}
             </button>
             <button className="min-w-0 flex-1 text-left" onClick={() => quick.edit('task', t)}>
-              <div className={`text-sm ${done ? 'text-stone-400 line-through' : 'text-stone-800'}`}>{t.title}</div>
+              <div className={`text-sm ${done ? 'text-stone-500 line-through' : 'text-stone-800'}`}>{t.title}</div>
               <div className="flex flex-wrap items-center gap-x-2 text-xs text-stone-500">
                 {t.kind !== 'tarea' && <span>{TASK_KINDS.find((k) => k.value === t.kind)?.label}</span>}
                 {showClient && t.client_id && <span>{db.clients.find((c) => c.id === t.client_id)?.company_name}</span>}
@@ -190,6 +190,7 @@ export function TaskList({ rows, showClient = true, empty = 'Sin tareas' }: { ro
 
 export function ProjectsTable({ rows, showClient = true }: { rows: Project[]; showClient?: boolean }) {
   const { db } = useData()
+  const navigate = useNavigate()
   if (!rows.length) return <Empty title="Sin proyectos" />
   return (
     <table className="w-full text-sm">
@@ -209,7 +210,7 @@ export function ProjectsTable({ rows, showClient = true }: { rows: Project[]; sh
         {rows.map((p) => {
           const pr = projectProgress(db, p)
           return (
-            <tr key={p.id} className="hover:bg-stone-50">
+            <tr key={p.id} {...clickRow(() => navigate(`/proyectos/${p.id}`))}>
               <td className="td"><Link to={`/proyectos/${p.id}`} className="link font-medium">{p.name}</Link></td>
               {showClient && <td className="td"><ClientLink id={p.client_id} /></td>}
               <td className="td"><StatusBadge map={PROJECT_STATUS} value={p.status} /></td>
@@ -252,7 +253,7 @@ export function TicketsTable({ rows, showClient = true }: { rows: Ticket[]; show
       </thead>
       <tbody className="divide-y divide-stone-100">
         {rows.map((t) => (
-          <tr key={t.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('ticket', t)}>
+          <tr key={t.id} {...clickRow(() => quick.edit('ticket', t))}>
             <td className="td font-medium text-stone-800">{t.title}</td>
             {showClient && <td className="td"><ClientLink id={t.client_id} /></td>}
             <td className="td capitalize text-stone-600">{t.category}</td>
@@ -285,10 +286,10 @@ export function DocumentsTable({ rows, showClient = true }: { rows: DocumentRec[
       </thead>
       <tbody className="divide-y divide-stone-100">
         {rows.map((d) => (
-          <tr key={d.id} className="cursor-pointer hover:bg-stone-50" onClick={() => quick.edit('document', d)}>
+          <tr key={d.id} {...clickRow(() => quick.edit('document', d))}>
             <td className="td font-medium text-stone-800">{d.name}</td>
             <td className="td text-stone-600">{DOC_KINDS.find((k) => k.value === d.kind)?.label}</td>
-            {showClient && <td className="td">{d.client_id ? <ClientLink id={d.client_id} /> : <span className="text-stone-400">Interno</span>}</td>}
+            {showClient && <td className="td">{d.client_id ? <ClientLink id={d.client_id} /> : <span className="text-stone-500">Interno</span>}</td>}
             <td className="td"><StatusBadge map={DOC_STATUS} value={d.status} /></td>
             <td className="td max-w-[320px]" onClick={(e) => e.stopPropagation()}>
               {(() => {

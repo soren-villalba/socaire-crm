@@ -24,6 +24,7 @@
   .link { @apply text-brand-600 hover:text-brand-800 hover:underline; }
   .h1 { @apply text-xl font-semibold text-brand-800; }
   .h2 { @apply text-sm font-semibold text-stone-800; }
+  .row-click { @apply cursor-pointer transition-colors hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:ring-inset focus-visible:ring-offset-0; }
   .muted { @apply text-stone-500; }
 }
 

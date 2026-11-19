@@ -1,9 +1,9 @@
 import logo from '../logo.svg'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, UserPlus, Target, FileSpreadsheet, Building2, FolderKanban, CheckSquare, LifeBuoy, Wallet, FileText,
-  Settings, Search, Plus, PanelLeftClose, PanelLeftOpen, LogOut, ChevronDown,
+  Settings, Search, Plus, PanelLeftClose, PanelLeftOpen, LogOut, ChevronDown, RefreshCw,
 } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { CommandPalette } from './CommandPalette'
@@ -19,10 +19,34 @@ function Logo({ collapsed }: { collapsed: boolean }) {
       {!collapsed && (
         <div className="leading-none">
           <div className="font-serif text-[22px] font-semibold text-brand-800">socaire</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-brand-400">CRM interno</div>
+          <div className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-brand-600">CRM interno</div>
         </div>
       )}
     </div>
+  )
+}
+
+// Posición de scroll por pantalla: al regresar a una lista, queda donde la dejaste.
+const scrollPos = new Map<string, number>()
+
+function SyncStatus() {
+  const { lastSync, syncing, refresh } = useData()
+  const [, setNow] = useState(0)
+  useEffect(() => {
+    const t = window.setInterval(() => setNow((n) => n + 1), 30_000)
+    return () => window.clearInterval(t)
+  }, [])
+  const mins = lastSync ? Math.floor((Date.now() - lastSync) / 60_000) : null
+  const label = syncing ? 'Actualizando…' : mins == null ? '' : mins < 1 ? 'Al día' : `Actualizado hace ${mins} min`
+  return (
+    <button
+      onClick={() => void refresh()}
+      title="Traer los cambios más recientes (se actualiza solo cada minuto y al volver a esta pestaña)"
+      className="hidden items-center gap-1.5 rounded-md px-2 py-1 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-700 md:flex"
+    >
+      <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+      {label}
+    </button>
   )
 }
 
@@ -34,6 +58,11 @@ export function Layout() {
   const quick = useQuick()
   const location = useLocation()
   const [palette, setPalette] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const el = mainRef.current
+    if (el) el.scrollTop = scrollPos.get(location.pathname) ?? 0
+  }, [location.pathname])
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('socaire-crm-collapsed') === '1'
@@ -103,7 +132,7 @@ export function Layout() {
         <nav className="flex-1 space-y-4 overflow-y-auto px-2 pb-4">
           {groups.map((g, gi) => (
             <div key={gi}>
-              {g.title && !collapsed && <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-400">{g.title}</div>}
+              {g.title && !collapsed && <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500">{g.title}</div>}
               <ul className="space-y-0.5">
                 {g.items.map((it) => (
                   <li key={it.to}>
@@ -117,7 +146,7 @@ export function Layout() {
                     >
                       {({ isActive }) => (
                         <>
-                          <span className={isActive ? 'text-brand-600' : 'text-stone-400 group-hover:text-stone-600'}>{it.icon}</span>
+                          <span className={isActive ? 'text-brand-600' : 'text-stone-500 group-hover:text-stone-600'}>{it.icon}</span>
                           {!collapsed && <span className="flex-1">{it.label}</span>}
                           {!!it.badge && <span className={`tnum rounded-full px-1.5 text-[11px] font-semibold ${collapsed ? 'absolute ml-5 -mt-4' : ''} ${it.to === '/' || it.to === '/tareas' ? 'bg-red-100 text-red-700' : 'bg-stone-200 text-stone-600'}`}>{it.badge}</span>}
                         </>
@@ -131,7 +160,7 @@ export function Layout() {
         </nav>
         <div className="border-t border-stone-200 p-2">
           <NavLink to="/configuracion" title="Configuración" className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] font-medium ${isActive ? 'bg-white text-brand-800 shadow-card ring-1 ring-stone-200' : 'text-stone-600 hover:bg-white'}`}>
-            <Settings size={17} className="text-stone-400" />
+            <Settings size={17} className="text-stone-500" />
             {!collapsed && 'Configuración'}
           </NavLink>
           <Menu
@@ -144,7 +173,7 @@ export function Layout() {
                       <span className="block truncate text-[13px] font-medium text-stone-800">{me?.full_name ?? 'Sin usuario'}</span>
                       <span className="block truncate text-[11px] text-stone-500">{backend.mode === 'local' ? 'Modo local' : 'Supabase'}</span>
                     </span>
-                    <ChevronDown size={14} className="text-stone-400" />
+                    <ChevronDown size={14} className="text-stone-500" />
                   </>
                 )}
               </button>
@@ -154,7 +183,7 @@ export function Layout() {
               <>
                 {backend.mode === 'local' && (
                   <>
-                    <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-stone-400">Trabajar como</div>
+                    <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-stone-500">Trabajar como</div>
                     {users.map((u) => (
                       <MenuItem key={u.id} onClick={() => { setMe(u.id); close() }}>
                         <Avatar name={u.full_name} size={20} /> {u.full_name}
@@ -178,12 +207,13 @@ export function Layout() {
           <button onClick={toggle} className="btn-ghost px-1.5" aria-label="Contraer menú">
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
-          <button onClick={() => setPalette(true)} className="flex h-9 w-[420px] max-w-full items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 text-sm text-stone-400 hover:border-stone-300">
+          <button onClick={() => setPalette(true)} className="flex h-9 w-[420px] max-w-full items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 text-sm text-stone-500 hover:border-stone-300">
             <Search size={15} />
             <span className="flex-1 text-left">Buscar o ejecutar una acción…</span>
             <kbd className="rounded border border-stone-200 bg-white px-1.5 text-[10px]">Ctrl K</kbd>
           </button>
           <div className="ml-auto flex items-center gap-2">
+            <SyncStatus />
             {backend.mode === 'local' && <span className="hidden rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700 ring-1 ring-amber-200 lg:inline">Modo local: los datos viven en este navegador</span>}
             <Menu
               trigger={
@@ -218,7 +248,7 @@ export function Layout() {
           </div>
         </header>
         {error && <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-sm text-red-700">Error al cargar datos: {error}</div>}
-        <main key={location.pathname} className="flex-1 overflow-y-auto">
+        <main key={location.pathname} ref={mainRef} onScroll={(e) => scrollPos.set(location.pathname, e.currentTarget.scrollTop)} className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1400px] px-6 py-6">
             <Outlet />
           </div>

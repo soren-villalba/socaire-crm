@@ -85,7 +85,7 @@ export function RecordForm({ fields, initial, onSubmit, onCancel, submitLabel = 
               <label key={f.name} className={`${span} flex items-center gap-2 text-sm text-stone-700`}>
                 <input type="checkbox" className="h-4 w-4 rounded border-stone-300 accent-brand-600" checked={!!val} onChange={(e) => set(f.name, e.target.checked)} />
                 {f.label}
-                {f.hint && <span className="text-xs text-stone-400">· {f.hint}</span>}
+                {f.hint && <span className="text-xs text-stone-500">· {f.hint}</span>}
               </label>
             )
           return (
@@ -120,7 +120,7 @@ export function RecordForm({ fields, initial, onSubmit, onCancel, submitLabel = 
                 <textarea id={id} rows={3} className="input" placeholder={f.placeholder} value={(val as string) ?? ''} onChange={(e) => set(f.name, e.target.value)} autoFocus={f.autoFocus} />
               ) : (
                 <div className="relative">
-                  {f.type === 'money' && <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400">$</span>}
+                  {f.type === 'money' && <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500">$</span>}
                   <input
                     id={id}
                     className={`input ${f.type === 'money' ? 'pl-6 tnum' : ''} ${err ? 'border-red-400' : ''}`}
@@ -134,7 +134,7 @@ export function RecordForm({ fields, initial, onSubmit, onCancel, submitLabel = 
                   />
                 </div>
               )}
-              {err ? <p className="mt-1 text-xs text-red-600">{err}</p> : f.hint ? <p className="mt-1 text-xs text-stone-400">{f.hint}</p> : null}
+              {err ? <p className="mt-1 text-xs text-red-600">{err}</p> : f.hint ? <p className="mt-1 text-xs text-stone-500">{f.hint}</p> : null}
             </div>
           )
         })}

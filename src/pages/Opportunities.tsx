@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Trophy, XCircle, FileSpreadsheet, MessageSquarePlus, Pencil, CalendarClock } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
-import { PageHeader, Segmented, Badge, Drawer, Modal, KV, StatusBadge, SearchInput, Empty } from '../components/ui'
+import { PageHeader, Segmented, Badge, Drawer, Modal, KV, StatusBadge, SearchInput, Empty, clickRow } from '../components/ui'
 import { ClientLink, DueDate, UserChip } from '../components/links'
 import { useQuick, createVeleroPhases } from '../components/QuickCreate'
 import { STAGES, OPEN_STAGES, SERVICE_TYPES, QUOTE_STATUS, INTERACTION_KINDS, stageLabel } from '../lib/constants'
 import { addBusinessDays, addMonths, fdate, fdatetime, money, normalize, todayISO } from '../lib/format'
 import { lastTouch, oppValue, quoteEffectiveStatus } from '../lib/metrics'
 import type { Opportunity, Stage } from '../lib/types'
+import { usePersist } from '../lib/usePersist'
 
 export default function Opportunities() {
   const opps = useTable('opportunities')
@@ -16,9 +17,9 @@ export default function Opportunities() {
   const quick = useQuick()
   const [params, setParams] = useSearchParams()
   const [view, setView] = useState<'kanban' | 'tabla'>(() => (localStorage.getItem('opp-view') as 'kanban' | 'tabla') ?? 'kanban')
-  const [owner, setOwner] = useState<'todos' | 'mios'>('todos')
-  const [showClosed, setShowClosed] = useState(false)
-  const [q, setQ] = useState('')
+  const [owner, setOwner] = usePersist<'todos' | 'mios'>('oportunidades.owner', 'todos')
+  const [showClosed, setShowClosed] = usePersist('oportunidades.cerradas', false)
+  const [q, setQ] = usePersist('oportunidades.q', '')
   const [dragId, setDragId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<Stage | null>(null)
   const [win, setWin] = useState<Opportunity | null>(null)
@@ -122,7 +123,7 @@ export default function Opportunities() {
                         </div>
                         {OPEN_STAGES.includes(o.stage) && (
                           <div className="mt-1.5 flex items-center gap-1 border-t border-stone-100 pt-1.5 text-xs">
-                            <CalendarClock size={12} className={overdue ? 'text-red-500' : 'text-stone-400'} />
+                            <CalendarClock size={12} className={overdue ? 'text-red-500' : 'text-stone-500'} />
                             {o.next_followup_date ? <DueDate date={o.next_followup_date} /> : <span className="text-amber-600">Sin seguimiento</span>}
                           </div>
                         )}
@@ -158,7 +159,7 @@ export default function Opportunities() {
                   .filter((o) => showClosed || OPEN_STAGES.includes(o.stage))
                   .sort((a, b) => STAGES.findIndex((s) => s.key === a.stage) - STAGES.findIndex((s) => s.key === b.stage))
                   .map((o) => (
-                    <tr key={o.id} className="cursor-pointer hover:bg-stone-50" onClick={() => setOpen(o.id)}>
+                    <tr key={o.id} {...clickRow(() => setOpen(o.id))}>
                       <td className="td font-medium text-stone-800">{o.title}</td>
                       <td className="td"><ClientLink id={o.client_id} /></td>
                       <td className="td"><StageBadge stage={o.stage} /></td>
@@ -248,7 +249,7 @@ function OppPanel({ o, onClose, onWin, onLose, onMove }: { o: Opportunity; onClo
               </button>
             ))}
           </div>
-          <div className="mt-1 text-xs text-stone-400">Último contacto: {fdate(lastTouch(db, o))}</div>
+          <div className="mt-1 text-xs text-stone-500">Último contacto: {fdate(lastTouch(db, o))}</div>
         </div>
       )}
 
@@ -275,7 +276,7 @@ function OppPanel({ o, onClose, onWin, onLose, onMove }: { o: Opportunity; onClo
             <li key={q.id}>
               <button className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-stone-50" onClick={() => navigate(`/cotizaciones/${q.id}`)}>
                 <span className="font-medium">{q.folio}</span>
-                <span className="text-stone-400">v{q.version}</span>
+                <span className="text-stone-500">v{q.version}</span>
                 <StatusBadge map={QUOTE_STATUS} value={quoteEffectiveStatus(q)} />
                 <span className="ml-auto text-xs text-stone-500">vence {fdate(q.valid_until)}</span>
               </button>

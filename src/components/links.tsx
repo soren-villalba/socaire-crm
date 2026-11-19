@@ -6,7 +6,7 @@ import { fdate, relDays, todayISO } from '../lib/format'
 export function ClientLink({ id }: { id?: string | null }) {
   const { byId } = useData()
   const c = byId('clients', id)
-  if (!c) return <span className="text-stone-400">—</span>
+  if (!c) return <span className="text-stone-500">—</span>
   return (
     <Link to={`/clientes/${c.id}`} className="link font-medium" onClick={(e) => e.stopPropagation()}>
       {c.company_name}
@@ -17,7 +17,7 @@ export function ClientLink({ id }: { id?: string | null }) {
 export function UserChip({ id, showName = true }: { id?: string | null; showName?: boolean }) {
   const { byId } = useData()
   const u = byId('profiles', id)
-  if (!u) return <span className="text-stone-400">—</span>
+  if (!u) return <span className="text-stone-500">—</span>
   return (
     <span className="inline-flex items-center gap-1.5">
       <Avatar name={u.full_name} size={20} />
@@ -27,7 +27,7 @@ export function UserChip({ id, showName = true }: { id?: string | null; showName
 }
 
 export function DueDate({ date, done }: { date?: string | null; done?: boolean }) {
-  if (!date) return <span className="text-stone-400">—</span>
+  if (!date) return <span className="text-stone-500">—</span>
   const today = todayISO()
   const late = !done && date < today
   const isToday = !done && date === today

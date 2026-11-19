@@ -171,7 +171,7 @@ export default function ClientDetail() {
                     {data.quotes.map((q) => (
                       <li key={q.id}>
                         <Link to={`/cotizaciones/${q.id}`} className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-stone-50">
-                          <span className="font-medium">{q.folio}</span><span className="text-stone-400">v{q.version}</span>
+                          <span className="font-medium">{q.folio}</span><span className="text-stone-500">v{q.version}</span>
                           <span className="flex-1 truncate text-stone-600">{q.title}</span>
                           <StatusBadge map={QUOTE_STATUS} value={quoteEffectiveStatus(q)} />
                         </Link>

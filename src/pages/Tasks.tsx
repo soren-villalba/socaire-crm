@@ -7,6 +7,7 @@ import { TaskList } from '../components/tables'
 import { useQuick } from '../components/QuickCreate'
 import { addDays, fdate, normalize, parseISO, todayISO, toISO } from '../lib/format'
 import type { Task } from '../lib/types'
+import { usePersist } from '../lib/usePersist'
 
 export default function Tasks() {
   const tasks = useTable('tasks')
@@ -14,9 +15,9 @@ export default function Tasks() {
   const { me, db } = useData()
   const quick = useQuick()
   const [params, setParams] = useSearchParams()
-  const [who, setWho] = useState<string>(me?.id ?? 'todos')
-  const [view, setView] = useState<'lista' | 'semana'>('lista')
-  const [q, setQ] = useState('')
+  const [who, setWho] = usePersist<string>('tareas.who', me?.id ?? 'todos')
+  const [view, setView] = usePersist<'lista' | 'semana'>('tareas.view', 'lista')
+  const [q, setQ] = usePersist('tareas.q', '')
   const [weekStart, setWeekStart] = useState(() => {
     const d = parseISO(todayISO())
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
@@ -47,7 +48,7 @@ export default function Tasks() {
     { title: 'Próximos 7 días', rows: open.filter((t) => t.due_date && t.due_date > today && t.due_date <= addDays(today, 7)).sort(byDue), tone: '' },
     { title: 'Más adelante', rows: open.filter((t) => t.due_date && t.due_date > addDays(today, 7)).sort(byDue), tone: '' },
     { title: 'Sin fecha', rows: open.filter((t) => !t.due_date), tone: '' },
-    { title: 'Hechas (últimos 14 días)', rows: mine.filter((t) => t.status === 'hecha' && (t.completed_at ?? '') >= addDays(today, -14)).sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? '')), tone: 'text-stone-400' },
+    { title: 'Hechas (últimos 14 días)', rows: mine.filter((t) => t.status === 'hecha' && (t.completed_at ?? '') >= addDays(today, -14)).sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? '')), tone: 'text-stone-500' },
   ]
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -69,7 +70,7 @@ export default function Tasks() {
       {view === 'lista' ? (
         <div className="space-y-4">
           {groups.filter((g) => g.rows.length).map((g) => (
-            <Card key={g.title} title={<span className={g.tone}>{g.title} <span className="font-normal text-stone-400">({g.rows.length})</span></span>} bodyClass="">
+            <Card key={g.title} title={<span className={g.tone}>{g.title} <span className="font-normal text-stone-500">({g.rows.length})</span></span>} bodyClass="">
               <TaskList rows={g.rows} />
             </Card>
           ))}
@@ -98,7 +99,7 @@ export default function Tasks() {
                   </div>
                   <div className="space-y-1 p-1.5">
                     {list.map((t) => (
-                      <button key={t.id} onClick={() => quick.edit('task', t)} className={`block w-full rounded-md border px-1.5 py-1 text-left text-xs ${t.status === 'hecha' ? 'border-stone-100 text-stone-400 line-through' : t.priority === 'alta' ? 'border-red-200 bg-red-50 text-red-800' : 'border-stone-200 bg-white text-stone-700'}`}>
+                      <button key={t.id} onClick={() => quick.edit('task', t)} className={`block w-full rounded-md border px-1.5 py-1 text-left text-xs ${t.status === 'hecha' ? 'border-stone-100 text-stone-500 line-through' : t.priority === 'alta' ? 'border-red-200 bg-red-50 text-red-800' : 'border-stone-200 bg-white text-stone-700'}`}>
                         {t.due_time && <span className="mr-1 font-medium">{t.due_time}</span>}
                         {t.title}
                       </button>

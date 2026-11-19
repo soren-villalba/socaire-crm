@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertTriangle, CircleAlert, Info, CheckCircle2, Circle } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
@@ -8,6 +8,7 @@ import { useQuick } from '../components/QuickCreate'
 import { buildAlerts, distribution, expectedCharges, mrr, pipelineSummary, projectProgress, receivables, collectedInMonth, taskOverdue, oppValue, isOpen } from '../lib/metrics'
 import { addDays, fdate, fdatetime, money, todayISO, parseISO, toISO } from '../lib/format'
 import { STAGES, OPEN_STAGES } from '../lib/constants'
+import { usePersist } from '../lib/usePersist'
 
 const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
@@ -19,7 +20,7 @@ export default function Dashboard() {
   const tasks = useTable('tasks')
   const projects = useTable('projects')
   const opps = useTable('opportunities')
-  const [area, setArea] = useState<string>('todas')
+  const [area, setArea] = usePersist<string>('dashboard.area', 'todas')
   const today = todayISO()
   const d = new Date()
 
@@ -56,6 +57,17 @@ export default function Dashboard() {
   const areas = ['todas', ...Array.from(new Set(alerts.map((a) => a.area)))]
   const shown = area === 'todas' ? alerts : alerts.filter((a) => a.area === area)
   const recent = db.audit_logs.slice(0, 8)
+
+  // Clientes y prospectos
+  const clients = db.clients.filter((c) => !c.deleted_at)
+  const activeClients = clients.filter((c) => c.status === 'activo')
+  const since30 = addDays(today, -30)
+  const newClients = activeClients.filter((c) => (c.relationship_start ?? c.created_at.slice(0, 10)) >= since30)
+  const atRisk = clients.filter((c) => c.status === 'en_riesgo')
+  const leads = db.leads.filter((l) => !l.deleted_at)
+  const newLeads = leads.filter((l) => l.created_at.slice(0, 10) >= addDays(today, -7))
+  const uncontacted = leads.filter((l) => l.status === 'nuevo' && l.created_at.slice(0, 10) <= addDays(today, -2))
+  const qualified = leads.filter((l) => l.status === 'calificado')
 
   const byStage = OPEN_STAGES.map((s) => {
     const list = opps.filter((o) => o.stage === s)
@@ -105,7 +117,7 @@ export default function Dashboard() {
                       <div className="truncate text-xs text-stone-500">{a.detail}</div>
                     </div>
                     <Badge>{a.area}</Badge>
-                    {a.date && <span className="tnum w-16 shrink-0 text-right text-xs text-stone-400">{fdate(a.date)}</span>}
+                    {a.date && <span className="tnum w-16 shrink-0 text-right text-xs text-stone-500">{fdate(a.date)}</span>}
                   </Link>
                 </li>
               ))}
@@ -184,20 +196,51 @@ export default function Dashboard() {
             {byStage.map((x) => (
               <li key={x.s}>
                 <div className="mb-1 flex justify-between text-xs">
-                  <span className="text-stone-600">{STAGES.find((s) => s.key === x.s)?.label} <span className="text-stone-400">({x.n})</span></span>
+                  <span className="text-stone-600">{STAGES.find((s) => s.key === x.s)?.label} <span className="text-stone-500">({x.n})</span></span>
                   <span className="tnum text-stone-700">{money(x.v)}</span>
                 </div>
                 <Progress pct={(x.v / maxStage) * 100} />
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-stone-400">Valor anual: pago único + 12 meses de recurrente. Tasa de cierre: {pipe.winRate == null ? '—' : `${Math.round(pipe.winRate * 100)}%`}.</p>
+          <p className="mt-3 text-xs text-stone-500">Valor anual: pago único + 12 meses de recurrente. Cierre: {pipe.closed === 0 ? 'aún sin oportunidades cerradas' : pipe.closed < 5 ? `${pipe.won} ganada(s) de ${pipe.closed} cerrada(s)` : `${Math.round((pipe.winRate ?? 0) * 100)}% (${pipe.won} de ${pipe.closed})`}.</p>
+        </Card>
+
+        <Card title="Clientes y prospectos" className="xl:col-span-2" actions={<Link to="/clientes" className="text-xs link">Clientes</Link>}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <div className="flex items-baseline gap-4">
+                <Link to="/clientes" className="group"><div className="tnum text-2xl font-semibold text-brand-800 group-hover:underline">{activeClients.length}</div><div className="text-xs text-stone-500">activos</div></Link>
+                <div><div className="tnum text-2xl font-semibold text-stone-800">{newClients.length}</div><div className="text-xs text-stone-500">nuevos (30 días)</div></div>
+                <div><div className={`tnum text-2xl font-semibold ${atRisk.length ? 'text-amber-600' : 'text-stone-800'}`}>{atRisk.length}</div><div className="text-xs text-stone-500">en riesgo</div></div>
+              </div>
+              {atRisk.length > 0 ? (
+                <ul className="mt-3 space-y-1 text-sm">
+                  {atRisk.slice(0, 4).map((c) => <li key={c.id} className="flex items-center gap-2"><AlertTriangle size={13} className="shrink-0 text-amber-500" /><ClientLink id={c.id} /></li>)}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-stone-500">Ningún cliente marcado en riesgo.</p>
+              )}
+            </div>
+            <div className="sm:border-l sm:border-stone-100 sm:pl-5">
+              <div className="flex items-baseline gap-4">
+                <Link to="/prospectos" className="group"><div className="tnum text-2xl font-semibold text-brand-800 group-hover:underline">{newLeads.length}</div><div className="text-xs text-stone-500">prospectos nuevos (7 días)</div></Link>
+                <div><div className="tnum text-2xl font-semibold text-stone-800">{qualified.length}</div><div className="text-xs text-stone-500">calificados</div></div>
+              </div>
+              {uncontacted.length > 0 ? (
+                <Link to="/prospectos" className="mt-3 flex items-center gap-2 text-sm text-red-700 hover:underline"><CircleAlert size={13} /> {uncontacted.length} sin contactar desde hace 2 días o más</Link>
+              ) : (
+                <p className="mt-3 text-xs text-stone-500">Todos los prospectos nuevos ya tienen primer contacto.</p>
+              )}
+              <button className="btn-secondary btn-sm mt-3" onClick={() => quick.open('lead')}>Nuevo prospecto</button>
+            </div>
+          </div>
         </Card>
 
         <Card title="Capacidad de esta semana">
           <div className="flex items-end justify-between">
             <div>
-              <div className="tnum text-2xl font-semibold text-brand-800">{myWeek} h <span className="text-sm font-normal text-stone-400">/ {settings.weekly_capacity_hours} h</span></div>
+              <div className="tnum text-2xl font-semibold text-brand-800">{myWeek} h <span className="text-sm font-normal text-stone-500">/ {settings.weekly_capacity_hours} h</span></div>
               <div className="text-xs text-stone-500">Tus horas registradas · equipo: {teamWeek} h</div>
             </div>
             <button className="btn-secondary btn-sm" onClick={() => quick.open('time')}>Registrar horas</button>
@@ -205,7 +248,7 @@ export default function Dashboard() {
           <div className="mt-3"><Progress pct={(myWeek / settings.weekly_capacity_hours) * 100} tone={myWeek > settings.weekly_capacity_hours ? 'red' : 'brand'} /></div>
         </Card>
 
-        <Card title="Actividad reciente" className="xl:col-span-2" bodyClass="">
+        <Card title="Actividad reciente" className="lg:col-span-2 xl:col-span-3" bodyClass="">
           {recent.length === 0 ? (
             <Empty title="Aún no hay cambios registrados" />
           ) : (
@@ -216,7 +259,7 @@ export default function Dashboard() {
                   <span className="text-stone-500">{db.profiles.find((p) => p.id === l.changed_by)?.full_name.split(' (')[0] ?? 'Sistema'}</span>
                   <span className="text-stone-700">{l.action === 'insert' ? 'creó' : l.action === 'delete' ? 'eliminó' : 'actualizó'}</span>
                   <span className="min-w-0 flex-1 truncate text-stone-800">{l.summary}</span>
-                  <span className="tnum text-xs text-stone-400">{fdatetime(l.changed_at)}</span>
+                  <span className="tnum text-xs text-stone-500">{fdatetime(l.changed_at)}</span>
                 </li>
               ))}
             </ul>

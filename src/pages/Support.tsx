@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useTable } from '../lib/store'
 import { PageHeader, Segmented, Card } from '../components/ui'
 import { TicketsTable } from '../components/tables'
 import { useQuick } from '../components/QuickCreate'
+import { usePersist } from '../lib/usePersist'
 
 export default function Support() {
   const tickets = useTable('tickets')
   const quick = useQuick()
   const [params, setParams] = useSearchParams()
-  const [f, setF] = useState<'abiertos' | 'todos'>('abiertos')
+  const [f, setF] = usePersist<'abiertos' | 'todos'>('soporte.filtro', 'abiertos')
 
   useEffect(() => {
     const id = params.get('t')
