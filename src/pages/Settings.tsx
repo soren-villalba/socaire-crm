@@ -85,7 +85,9 @@ export default function SettingsPage() {
     if (!rows.length) return toast.error('Esa tabla está vacía')
     const cols = Array.from(new Set(rows.flatMap((r) => Object.keys(r))))
     const esc = (v: unknown) => {
-      const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+      let s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)
+      // Evita que Excel ejecute fórmulas escritas en un campo de texto (inyección CSV)
+      if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
     }
     download(`${table}-${todayISO()}.csv`, '﻿' + [cols.join(','), ...rows.map((r) => cols.map((c) => esc(r[c])).join(','))].join('\n'), 'text/csv;charset=utf-8')
@@ -273,10 +275,10 @@ export default function SettingsPage() {
         onClose={() => setConfirmReset(false)}
         danger
         title="Volver a la carga inicial"
-        text="Se borran los datos de este navegador y se carga de nuevo la información inicial (Brenda, Nelly, Vidriera y Baken). Descarga un respaldo antes si capturaste algo."
+        text="Se borran los datos de este navegador y se carga de nuevo la información inicial de ejemplo. Descarga un respaldo antes si capturaste algo."
         confirmLabel="Borrar y recargar"
         onConfirm={async () => {
-          ;(backend as LocalBackend).reset()
+          await (backend as LocalBackend).reset()
           await reload()
           toast.success('Carga inicial restaurada')
         }}
