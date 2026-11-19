@@ -31,7 +31,7 @@ export interface Backend {
 const LS_KEY = 'socaire-crm-db-v1'
 
 /** Tablas nuevas que dependen de correr un script SQL (0005). Si faltan, no se cae todo el CRM. */
-export const OPTIONAL_TABLES: TableName[] = ['expenses', 'assets', 'contracts']
+export const OPTIONAL_TABLES: TableName[] = ['expenses', 'assets', 'contracts', 'ticket_events', 'checklist_items', 'weekly_reviews']
 export const missingTables = new Set<TableName>()
 
 
@@ -229,6 +229,9 @@ export async function importToSupabase(sb: SupabaseClient, data: DB, profileMap:
   await up('assets', d.assets ?? [])
   await up('expenses', d.expenses ?? [])
   await up('contracts', d.contracts ?? [])
+  await up('ticket_events', d.ticket_events ?? [])
+  await up('checklist_items', d.checklist_items ?? [])
+  await up('weekly_reviews', d.weekly_reviews ?? [])
   const app = d.settings.find((s) => s.key === 'app')
   if (app) {
     const { error } = await sb.from('settings').update({ value: app.value }).eq('key', 'app')

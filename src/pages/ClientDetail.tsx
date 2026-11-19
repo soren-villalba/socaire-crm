@@ -7,6 +7,7 @@ import { DueDate, UserChip } from '../components/links'
 import { DriveFolderButton, DriveFolderValue } from '../components/drive'
 import { useQuick } from '../components/QuickCreate'
 import { ContractsTable, ExpensesTable } from '../components/financeTables'
+import { Checklist } from '../components/checklists'
 import { InvoicesTable, PaymentsTable, ProjectsTable, SubscriptionsTable, TaskList, TicketsTable, DocumentsTable } from '../components/tables'
 import { CLIENT_STATUS, INTERACTION_KINDS, PRIORITY, SOURCES, QUOTE_STATUS } from '../lib/constants'
 import { addDays, fdate, fdatetime, money, todayISO } from '../lib/format'
@@ -183,6 +184,10 @@ export default function ClientDetail() {
                   </ul>
                 </Card>
               )}
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Checklist clientId={c.id} projectId={data.projects.find((p) => p.status !== 'cancelado')?.id} list="onboarding" />
+                <Checklist clientId={c.id} projectId={data.projects.find((p) => p.status !== 'cancelado')?.id} list="cierre" />
+              </div>
               <Card title="Actividad reciente" actions={<button className="btn-ghost btn-sm" onClick={() => setTab('actividad')}>Ver todo</button>}>
                 <Timeline items={timeline.slice(0, 5)} dot={dot} />
               </Card>

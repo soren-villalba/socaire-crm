@@ -476,7 +476,7 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
     if (kind === 'task' && data.status === 'hecha' && !record?.completed_at) data.completed_at = new Date().toISOString()
     if (kind === 'phase' && data.status === 'hecho' && !data.done_date) data.done_date = today
     if (kind === 'change' && (data.status === 'aprobado' || data.status === 'hecho') && !data.approved_date) data.approved_date = today
-    if (kind === 'ticket' && data.status !== 'nuevo' && !record?.first_response_at) data.first_response_at = new Date().toISOString()
+    if (kind === 'ticket' && data.status !== 'nuevo' && data.status !== 'asignado' && !record?.first_response_at) data.first_response_at = new Date().toISOString()
     if (kind === 'ticket' && (data.status === 'resuelto' || data.status === 'cerrado') && !record?.resolved_at) data.resolved_at = new Date().toISOString()
     if (kind === 'contract' && data.status !== 'borrador' && !data.sent_date) data.sent_date = today
     if (kind === 'contract' && data.status === 'firmado' && !data.signed_date) data.signed_date = today

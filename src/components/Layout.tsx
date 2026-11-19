@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, UserPlus, Target, FileSpreadsheet, Building2, FolderKanban, CheckSquare, LifeBuoy, Wallet, FileText,
-  Settings, Search, Plus, PanelLeftClose, PanelLeftOpen, LogOut, ChevronDown, RefreshCw,
+  Settings, Search, Plus, PanelLeftClose, PanelLeftOpen, LogOut, ChevronDown, RefreshCw, BarChart3, CalendarCheck,
 } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { CommandPalette } from './CommandPalette'
@@ -114,12 +114,14 @@ export function Layout() {
         { to: '/proyectos', label: 'Proyectos', icon: <FolderKanban size={17} /> },
         { to: '/tareas', label: 'Tareas', icon: <CheckSquare size={17} />, badge: myOverdue },
         { to: '/soporte', label: 'Soporte', icon: <LifeBuoy size={17} />, badge: openTickets },
+        { to: '/revision', label: 'Revisión semanal', icon: <CalendarCheck size={17} /> },
       ],
     },
     {
       title: 'Administración',
       items: [
         { to: '/finanzas', label: 'Finanzas', icon: <Wallet size={17} /> },
+        { to: '/reportes', label: 'Reportes', icon: <BarChart3 size={17} /> },
         { to: '/documentos', label: 'Documentos', icon: <FileText size={17} /> },
       ],
     },
@@ -252,7 +254,7 @@ export function Layout() {
         </header>
         {backend.mode === 'supabase' && missingTables.size > 0 && (
           <div className="border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-800">
-            Falta preparar la base de datos para gastos, servicios y contratos: corre <code className="rounded bg-amber-100 px-1">supabase/migrations/0005_finanzas_contratos_metas.sql</code> en el SQL Editor de Supabase. Lo demás funciona normal.
+            Falta preparar la base de datos: corre {[...new Set([...missingTables].map((t) => (['expenses', 'assets', 'contracts'].includes(t) ? '0005_finanzas_contratos_metas.sql' : '0006_soporte_checklists_revision.sql')))].sort().map((f, i) => <span key={f}>{i > 0 && ' y luego '}<code className="rounded bg-amber-100 px-1">{f}</code></span>)} en el SQL Editor de Supabase. Lo demás funciona normal.
           </div>
         )}
         {error && <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-sm text-red-700">Error al cargar datos: {error}</div>}

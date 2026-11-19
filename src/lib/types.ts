@@ -408,6 +408,31 @@ export interface Setting extends Base {
   value: unknown
 }
 
+// ---------- Entrega C ----------
+export interface TicketEvent extends Base {
+  ticket_id: ID
+  kind: 'respuesta' | 'cliente' | 'nota' | 'estado'
+  body: string
+}
+export interface ChecklistItem extends Base {
+  client_id: ID
+  project_id?: ID | null
+  list: 'onboarding' | 'cierre'
+  sort: number
+  phase?: string | null
+  label: string
+  done: boolean
+  done_at?: ISODateTime | null
+  notes?: string | null
+}
+export interface WeeklyReview extends Base {
+  week_start: ISODate
+  wins?: string | null
+  blockers?: string | null
+  priorities?: string | null
+  snapshot: Record<string, number>
+}
+
 export interface Tables {
   profiles: Profile
   clients: Client
@@ -433,6 +458,9 @@ export interface Tables {
   expenses: Expense
   assets: Asset
   contracts: Contract
+  ticket_events: TicketEvent
+  checklist_items: ChecklistItem
+  weekly_reviews: WeeklyReview
   settings: Setting
 }
 
@@ -440,7 +468,7 @@ export type TableName = keyof Tables
 export const TABLES: TableName[] = [
   'profiles', 'clients', 'contacts', 'branches', 'leads', 'opportunities', 'products', 'quotes',
   'quote_items', 'subscriptions', 'referrals', 'invoices', 'payments', 'projects', 'project_phases',
-  'change_requests', 'time_entries', 'tasks', 'interactions', 'tickets', 'documents', 'expenses', 'assets', 'contracts', 'settings',
+  'change_requests', 'time_entries', 'tasks', 'interactions', 'tickets', 'documents', 'expenses', 'assets', 'contracts', 'ticket_events', 'checklist_items', 'weekly_reviews', 'settings',
 ]
 
 export type DB = { [K in TableName]: Tables[K][] } & { audit_logs: AuditLog[] }

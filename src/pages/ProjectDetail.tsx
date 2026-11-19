@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Plus, Clock, CheckCircle2, Circle, AlertOctagon, Loader, MoreHorizontal } from 'lucide-react'
 import { useData } from '../lib/store'
 import { Card, KV, StatusBadge, Tabs, Empty, Badge, Progress, Menu, MenuItem, clickRow } from '../components/ui'
+import { ProjectTimeline } from '../components/Timeline'
 import { ClientLink, DueDate, UserChip } from '../components/links'
 import { useQuick, createVeleroPhases } from '../components/QuickCreate'
 import { DriveFolderButton } from '../components/drive'
@@ -118,6 +119,11 @@ export default function ProjectDetail() {
       <div className="mt-4">
         {tab === 'plan' && (
           <div className="grid gap-5 xl:grid-cols-3">
+            {data.phases.some((x) => x.start_date || x.due_date) && (
+              <Card title="Cronograma" className="xl:col-span-3" bodyClass="">
+                <ProjectTimeline projects={[p]} showProjectName={false} />
+              </Card>
+            )}
             <Card title="Fases e hitos" className="xl:col-span-2" bodyClass="" actions={data.phases.length === 0 && <button className="btn-secondary btn-sm" onClick={() => createVeleroPhases(p, insert, me?.id)}>Crear fases VELERO</button>}>
               {data.phases.length === 0 ? <Empty title="Sin fases" /> : (
                 <ol className="divide-y divide-stone-100">

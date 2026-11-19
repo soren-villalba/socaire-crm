@@ -17,7 +17,7 @@ const TABLE_LABELS: Record<string, string> = {
   profiles: 'Usuarios', clients: 'Clientes', contacts: 'Contactos', branches: 'Sucursales', leads: 'Prospectos', opportunities: 'Oportunidades', products: 'Productos',
   quotes: 'Cotizaciones', quote_items: 'Conceptos de cotización', subscriptions: 'Suscripciones', referrals: 'Referidos', invoices: 'Facturas', payments: 'Pagos',
   projects: 'Proyectos', project_phases: 'Fases', change_requests: 'Cambios', time_entries: 'Horas', tasks: 'Tareas', interactions: 'Interacciones', tickets: 'Tickets',
-  documents: 'Documentos', expenses: 'Gastos', assets: 'Servicios y renovaciones', contracts: 'Contratos', settings: 'Parámetros',
+  documents: 'Documentos', expenses: 'Gastos', assets: 'Servicios y renovaciones', contracts: 'Contratos', ticket_events: 'Historial de tickets', checklist_items: 'Checklists', weekly_reviews: 'Revisiones semanales', settings: 'Parámetros',
 }
 
 export default function SettingsPage() {
@@ -189,6 +189,11 @@ export default function SettingsPage() {
               </div>
               {numField('fixed_cost_per_package', 'Costo fijo por paquete (mensual)', 'Netlify + Supabase + dominio')}
               {numField('branches_per_package', 'Sucursales por paquete')}
+              {numField('sla_alta_hours', 'SLA prioridad alta (h hábiles)', 'Primera respuesta')}
+              {numField('sla_media_hours', 'SLA prioridad media (h hábiles)')}
+              {numField('sla_baja_hours', 'SLA prioridad baja (h hábiles)')}
+              {numField('business_start_hour', 'Inicio del horario hábil (hora)', 'Lunes a viernes')}
+              {numField('business_end_hour', 'Fin del horario hábil (hora)')}
             </div>
             <div className="mt-4 flex gap-2">
               <button className="btn-primary" onClick={saveSettings} disabled={!can('finance.manage')}>Guardar parámetros</button>

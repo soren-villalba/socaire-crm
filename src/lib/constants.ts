@@ -183,6 +183,12 @@ export const DEFAULT_SETTINGS = {
   invoice_reminder_days: [3, 7],
   fixed_cost_per_package: 1000,
   branches_per_package: 5,
+  // SLA de soporte en horas hábiles (lun–vie, horario de abajo). Aprobado el 19 nov 2026.
+  sla_alta_hours: 4,
+  sla_media_hours: 24,
+  sla_baja_hours: 72,
+  business_start_hour: 9,
+  business_end_hour: 18,
 }
 export type Settings = typeof DEFAULT_SETTINGS
 
@@ -269,3 +275,35 @@ export const DEFAULT_GOALS: Goal[] = [
   { id: 'g6', name: 'Ecosistema / app propio (MVP)', metric: 'manual', target: 1, due: '2027-11-30' },
   { id: 'g7', name: 'Equipo de 2 a 3 personas', metric: 'usuarios_activos', target: 3, due: '2027-11-30' },
 ]
+
+// ---------- Checklists (Entrega C) ----------
+// SOP 4 (05_Procesos/04_SOP_Onboarding_Cliente.md) y SOP 9 (09_SOP_Cierre_y_Referidos.md).
+export const CHECKLIST_TEMPLATES: Record<'onboarding' | 'cierre', { phase: string; label: string }[]> = {
+  onboarding: [
+    { phase: 'V', label: 'Confirmar por escrito alcance, precio, inicio del cobro y permanencia' },
+    { phase: 'V', label: 'Pedir datos fiscales (RFC, CP fiscal, régimen, uso de CFDI, correo)' },
+    { phase: 'V', label: 'Crear la carpeta del cliente en Drive y llenar la ficha' },
+    { phase: 'V', label: 'Marcar la oportunidad como ganada' },
+    { phase: 'V', label: 'Definir quién da seguimiento y aprueba del lado del cliente' },
+    { phase: 'V', label: 'Agendar kickoff y enviar la lista de información' },
+    { phase: 'V', label: 'Registrar y enviar el contrato (permanencia de 6 meses)' },
+    { phase: 'E', label: 'Kickoff de 60–90 min con minuta y línea base' },
+    { phase: 'E', label: 'Recibir la información (plazo: 3 días hábiles)' },
+    { phase: 'E', label: 'Abrir el canal único de comunicación (grupo de WhatsApp)' },
+    { phase: 'E', label: 'Calendario de hitos H1–H7 confirmado con el cliente' },
+  ],
+  cierre: [
+    { phase: 'Cierre', label: 'Enviar encuesta de satisfacción' },
+    { phase: 'Cierre', label: 'Pedir permiso y documentar el caso de éxito' },
+    { phase: 'Cierre', label: 'Solicitar referido (programa de descuentos)' },
+    { phase: 'Cierre', label: 'Pasar a suscripción o soporte mensual' },
+    { phase: 'Cierre', label: 'Entregar accesos, manuales y acta de cierre' },
+  ],
+}
+
+export const TICKET_EVENT_KINDS: Record<string, { label: string; tone: 'brand' | 'blue' | 'neutral' | 'amber' }> = {
+  respuesta: { label: 'Respuesta al cliente', tone: 'brand' },
+  cliente: { label: 'Mensaje del cliente', tone: 'blue' },
+  nota: { label: 'Nota interna', tone: 'amber' },
+  estado: { label: 'Cambio de estado', tone: 'neutral' },
+}

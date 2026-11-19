@@ -2,7 +2,8 @@
 import type { Asset, Client, Contract, DB, Invoice, Opportunity, Payment, Project, ProjectPhase, Quote, QuoteItem, Subscription, Task } from './types'
 import type { Goal, GoalMetric, Settings } from './constants'
 import { OPEN_STAGES } from './constants'
-import { addDays, addMonths, diffDays, todayISO } from './format'
+import { addDays, addMonths, diffDays, parseISO, todayISO } from './format'
+import { fmtHours, ticketSla } from './sla'
 
 const live = <T extends { deleted_at?: string | null }>(arr: T[]) => arr.filter((r) => !r.deleted_at)
 
@@ -296,8 +297,11 @@ export function buildAlerts(db: DB, s: Settings): Alert[] {
 
   for (const tk of live(db.tickets)) {
     if (tk.status === 'resuelto' || tk.status === 'cerrado') continue
-    const hrs = (Date.now() - new Date(tk.created_at).getTime()) / 3600000
-    if (!tk.first_response_at && hrs > 24) out.push({ id: `tk-${tk.id}`, level: 'alta', area: 'Soporte', title: `Solicitud sin respuesta: ${cname(tk.client_id)}`, detail: tk.title, to: `/soporte?t=${tk.id}`, date: tk.created_at.slice(0, 10) })
+    const sla = ticketSla(tk, s)
+    if (sla.state === 'vencido')
+      out.push({ id: `tk-${tk.id}`, level: 'alta', area: 'Soporte', title: `SLA vencido (${tk.priority}): ${cname(tk.client_id)}`, detail: `${tk.title} · sin respuesta, venció hace ${fmtHours(sla.left)} hábiles`, to: `/soporte?t=${tk.id}`, date: tk.created_at.slice(0, 10) })
+    else if (sla.state === 'por_vencer')
+      out.push({ id: `tk-${tk.id}`, level: 'media', area: 'Soporte', title: `Responder en ${fmtHours(sla.left)}: ${cname(tk.client_id)}`, detail: `${tk.title} · prioridad ${tk.priority}`, to: `/soporte?t=${tk.id}`, date: tk.created_at.slice(0, 10) })
   }
 
   // Gastos por pagar vencidos
@@ -328,6 +332,15 @@ export function buildAlerts(db: DB, s: Settings): Alert[] {
     if ((sub.status === 'activa' || sub.status === 'pendiente') && !contracts.some((c) => c.subscription_id === sub.id && (c.status === 'firmado' || c.status === 'enviado')))
       out.push({ id: `sub-nc-${sub.id}`, level: 'baja', area: 'Clientes', title: `Suscripción sin contrato: ${cname(sub.client_id)}`, detail: 'Registra el contrato con su permanencia de 6 meses y la liga al documento en Drive.', to: `/clientes/${sub.client_id}?tab=servicios` })
   }
+
+  // Revisión semanal
+  const reviews = live(db.weekly_reviews ?? [])
+  const wd = parseISO(today).getDay()
+  const thisWeek = weekStart(today)
+  if ((wd === 5 || wd === 6 || wd === 0) && !reviews.some((r) => r.week_start === thisWeek))
+    out.push({ id: `wr-${thisWeek}`, level: 'baja', area: 'Tareas', title: 'Revisión semanal pendiente', detail: '15 minutos: qué salió, qué se atoró y las 3 prioridades de la próxima semana.', to: '/revision', date: today })
+  else if (wd === 1 && !reviews.some((r) => r.week_start === addDays(thisWeek, -7)))
+    out.push({ id: `wr-${addDays(thisWeek, -7)}`, level: 'media', area: 'Tareas', title: 'Falta la revisión de la semana pasada', detail: 'Hazla antes de arrancar la semana.', to: `/revision?w=${addDays(thisWeek, -7)}`, date: today })
 
   const rank = { alta: 0, media: 1, baja: 2 }
   return out.sort((a, b) => rank[a.level] - rank[b.level] || (a.date ?? '').localeCompare(b.date ?? ''))
@@ -470,4 +483,10 @@ export function goalValue(db: DB, s: Settings, g: Goal): number {
     case 'manual':
       return g.done ? g.target : 0
   }
+}
+
+/** Lunes de la semana de una fecha. */
+export function weekStart(iso: string): string {
+  const wd = parseISO(iso).getDay()
+  return addDays(iso, wd === 0 ? -6 : 1 - wd)
 }
