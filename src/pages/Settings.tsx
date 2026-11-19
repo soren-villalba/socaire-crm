@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Download, Upload, RotateCcw } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { PageHeader, Tabs, Card, Badge, Confirm, Empty, clickRow } from '../components/ui'
+import { GoalsEditor } from '../components/goals'
 import { useQuick } from '../components/QuickCreate'
 import { useToast } from '../components/Toast'
 import { ROLES, DEFAULT_SETTINGS, type Settings } from '../lib/constants'
@@ -10,13 +11,13 @@ import { LocalBackend, importToSupabase, supabase } from '../lib/backend'
 import { TABLES, type DB } from '../lib/types'
 import { usePersist } from '../lib/usePersist'
 
-type TabKey = 'usuarios' | 'catalogo' | 'parametros' | 'datos' | 'auditoria'
+type TabKey = 'usuarios' | 'catalogo' | 'parametros' | 'metas' | 'datos' | 'auditoria'
 
 const TABLE_LABELS: Record<string, string> = {
   profiles: 'Usuarios', clients: 'Clientes', contacts: 'Contactos', branches: 'Sucursales', leads: 'Prospectos', opportunities: 'Oportunidades', products: 'Productos',
   quotes: 'Cotizaciones', quote_items: 'Conceptos de cotización', subscriptions: 'Suscripciones', referrals: 'Referidos', invoices: 'Facturas', payments: 'Pagos',
   projects: 'Proyectos', project_phases: 'Fases', change_requests: 'Cambios', time_entries: 'Horas', tasks: 'Tareas', interactions: 'Interacciones', tickets: 'Tickets',
-  documents: 'Documentos', settings: 'Parámetros',
+  documents: 'Documentos', expenses: 'Gastos', assets: 'Servicios y renovaciones', contracts: 'Contratos', settings: 'Parámetros',
 }
 
 export default function SettingsPage() {
@@ -118,6 +119,7 @@ export default function SettingsPage() {
           { key: 'usuarios', label: 'Usuarios y roles' },
           { key: 'catalogo', label: 'Catálogo de servicios' },
           { key: 'parametros', label: 'Parámetros' },
+          { key: 'metas', label: 'Metas' },
           { key: 'datos', label: 'Datos y respaldos' },
           { key: 'auditoria', label: 'Registro de cambios' },
         ]}
@@ -194,6 +196,8 @@ export default function SettingsPage() {
             </div>
           </Card>
         )}
+
+        {tab === 'metas' && <GoalsEditor />}
 
         {tab === 'datos' && (
           <div className="grid gap-5 lg:grid-cols-2">

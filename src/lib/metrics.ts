@@ -1,6 +1,6 @@
 // Reglas de negocio calculadas: MRR, referidos, saldos, cobros esperados y alertas.
-import type { Client, DB, Invoice, Opportunity, Payment, Project, ProjectPhase, Quote, QuoteItem, Subscription, Task } from './types'
-import type { Settings } from './constants'
+import type { Asset, Client, Contract, DB, Invoice, Opportunity, Payment, Project, ProjectPhase, Quote, QuoteItem, Subscription, Task } from './types'
+import type { Goal, GoalMetric, Settings } from './constants'
 import { OPEN_STAGES } from './constants'
 import { addDays, addMonths, diffDays, todayISO } from './format'
 
@@ -300,6 +300,35 @@ export function buildAlerts(db: DB, s: Settings): Alert[] {
     if (!tk.first_response_at && hrs > 24) out.push({ id: `tk-${tk.id}`, level: 'alta', area: 'Soporte', title: `Solicitud sin respuesta: ${cname(tk.client_id)}`, detail: tk.title, to: `/soporte?t=${tk.id}`, date: tk.created_at.slice(0, 10) })
   }
 
+  // Gastos por pagar vencidos
+  for (const e of live(db.expenses ?? [])) {
+    if (e.status === 'pendiente' && e.due_date && e.due_date <= today)
+      out.push({ id: `exp-${e.id}`, level: e.due_date < today ? 'alta' : 'media', area: 'Finanzas', title: `${e.due_date < today ? 'Gasto vencido' : 'Gasto vence hoy'}: ${e.vendor || e.concept}`, detail: `${e.concept} · $${e.total.toLocaleString('es-MX')}`, to: '/finanzas?tab=gastos', date: e.due_date })
+  }
+  // Renovaciones de dominios, hosting, licencias…
+  for (const a of live(db.assets ?? [])) {
+    if (a.status !== 'activo' || !a.renewal_date || a.cost_type === 'gratis') continue
+    const d = diffDays(a.renewal_date, today)
+    if (d <= 15)
+      out.push({ id: `as-${a.id}`, level: d < 0 ? 'alta' : 'media', area: 'Finanzas', title: d < 0 ? `Renovación vencida: ${a.name}` : `Renovar en ${d} días: ${a.name}`, detail: `${a.provider ?? ''} · $${a.cost.toLocaleString('es-MX')}`, to: '/finanzas?tab=servicios', date: a.renewal_date })
+  }
+  // Contratos
+  const contracts = live(db.contracts ?? [])
+  for (const c of contracts) {
+    if (c.status === 'enviado' && c.sent_date && diffDays(today, c.sent_date) >= 7)
+      out.push({ id: `ct-sf-${c.id}`, level: 'media', area: 'Clientes', title: `Contrato sin firmar: ${cname(c.client_id)}`, detail: `${c.title} · enviado hace ${diffDays(today, c.sent_date)} días`, to: `/clientes/${c.client_id}?tab=servicios`, date: c.sent_date })
+    const end = contractTermEnd(c)
+    if (c.status === 'firmado' && end) {
+      const d = diffDays(end, today)
+      if (d >= 0 && d <= c.renewal_notice_days)
+        out.push({ id: `ct-end-${c.id}`, level: c.auto_renew ? 'baja' : 'media', area: 'Clientes', title: `${c.auto_renew ? 'Termina la permanencia' : 'Contrato por vencer'} en ${d} días: ${cname(c.client_id)}`, detail: c.auto_renew ? `${c.title} · se renueva mes a mes; buen momento para ampliar` : `${c.title} · no se renueva solo: renovar o cerrar`, to: `/clientes/${c.client_id}?tab=servicios`, date: end })
+    }
+  }
+  for (const sub of live(db.subscriptions)) {
+    if ((sub.status === 'activa' || sub.status === 'pendiente') && !contracts.some((c) => c.subscription_id === sub.id && (c.status === 'firmado' || c.status === 'enviado')))
+      out.push({ id: `sub-nc-${sub.id}`, level: 'baja', area: 'Clientes', title: `Suscripción sin contrato: ${cname(sub.client_id)}`, detail: 'Registra el contrato con su permanencia de 6 meses y la liga al documento en Drive.', to: `/clientes/${sub.client_id}?tab=servicios` })
+  }
+
   const rank = { alta: 0, media: 1, baja: 2 }
   return out.sort((a, b) => rank[a.level] - rank[b.level] || (a.date ?? '').localeCompare(b.date ?? ''))
 }
@@ -308,4 +337,137 @@ export function clientRevenue(db: DB, c: Client) {
   return live(db.payments)
     .filter((p) => p.client_id === c.id)
     .reduce((a, p) => a + p.amount, 0)
+}
+
+// ---------- Gastos y estado de resultados ----------
+
+/** Costo mensual equivalente de un servicio (dominio anual = costo / 12; por cliente = costo × clientes). */
+export function assetMonthly(db: DB, a: Asset): number {
+  if (a.status !== 'activo') return 0
+  switch (a.cost_type) {
+    case 'mensual':
+      return a.cost
+    case 'anual':
+      return a.cost / 12
+    case 'por_cliente': {
+      const clients = new Set(
+        live(db.subscriptions)
+          .filter((x) => (x.status === 'activa' || x.status === 'pendiente') && (!a.product_id || x.product_id === a.product_id))
+          .map((x) => x.client_id),
+      )
+      return a.cost * Math.max(1, clients.size)
+    }
+    default:
+      return 0
+  }
+}
+
+/**
+ * Costo fijo mensual de la plataforma SaaS. Si ya hay servicios registrados ligados a un producto SaaS,
+ * se usa su suma real; si no, el parámetro por paquete de sucursales.
+ */
+export function platformCost(db: DB, s: Settings): { amount: number; fromAssets: boolean } {
+  const saasIds = new Set(live(db.products).filter((p) => p.kind === 'saas').map((p) => p.id))
+  const assets = live(db.assets ?? []).filter((a) => a.product_id && saasIds.has(a.product_id))
+  if (assets.length) return { amount: assets.reduce((t, a) => t + assetMonthly(db, a), 0), fromAssets: true }
+  const d = distribution(db)
+  return { amount: Math.ceil(Math.max(1, d.activeBranches + d.pendingBranches) / s.branches_per_package) * s.fixed_cost_per_package, fromAssets: false }
+}
+
+/** Parte sin IVA de un pago: si está ligado a una factura, en la misma proporción que ella. */
+export function paymentNet(db: DB, p: Payment, s: Settings): number {
+  const inv = p.invoice_id ? db.invoices.find((i) => i.id === p.invoice_id) : undefined
+  if (inv && inv.total > 0) return p.amount * (inv.subtotal / inv.total)
+  return p.amount / (1 + s.iva_rate)
+}
+
+export interface MonthResult {
+  ym: string
+  invoiced: number // facturado sin IVA (CFDI emitidos)
+  collected: number // cobrado con IVA
+  collectedNet: number // cobrado sin IVA
+  expenses: number // gastos pagados sin IVA
+  expensesTotal: number // gastos pagados con IVA
+  profit: number // utilidad = cobrado sin IVA − gastos sin IVA
+  ivaCollected: number
+  ivaCredit: number
+}
+
+/** Estado de resultados mensual en base a efectivo (lo cobrado y lo pagado), como la hoja Resumen del Excel. */
+export function monthResult(db: DB, s: Settings, ym: string): MonthResult {
+  const invoiced = live(db.invoices).filter((i) => i.status === 'emitida' && i.issue_date.startsWith(ym)).reduce((t, i) => t + i.subtotal, 0)
+  const pays = live(db.payments).filter((p) => p.payment_date.startsWith(ym))
+  const collected = pays.reduce((t, p) => t + p.amount, 0)
+  const collectedNet = pays.reduce((t, p) => t + paymentNet(db, p, s), 0)
+  const exps = live(db.expenses ?? []).filter((e) => e.status === 'pagado' && e.expense_date.startsWith(ym))
+  const expenses = exps.reduce((t, e) => t + e.subtotal, 0)
+  const expensesTotal = exps.reduce((t, e) => t + e.total, 0)
+  const ivaCredit = exps.reduce((t, e) => t + e.tax, 0)
+  return { ym, invoiced, collected, collectedNet, expenses, expensesTotal, profit: collectedNet - expenses, ivaCollected: collected - collectedNet, ivaCredit }
+}
+
+export function expensesByCategory(db: DB, year: string) {
+  const m = new Map<string, number>()
+  for (const e of live(db.expenses ?? [])) if (e.status === 'pagado' && e.expense_date.startsWith(year)) m.set(e.category, (m.get(e.category) ?? 0) + e.subtotal)
+  return [...m.entries()].map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount)
+}
+
+export function expensesPending(db: DB) {
+  return live(db.expenses ?? []).filter((e) => e.status === 'pendiente').reduce((t, e) => t + e.total, 0)
+}
+
+// ---------- Contratos ----------
+
+/** Fin de la permanencia mínima (inicio + meses). */
+export function contractTermEnd(c: Contract): string | null {
+  const start = c.start_date ?? c.signed_date
+  return start && c.min_term_months ? addMonths(start, c.min_term_months) : null
+}
+
+/** Meses (completos o parciales) que faltan para terminar la permanencia en una fecha dada. */
+export function monthsLeft(c: Contract, at = todayISO()): number {
+  const end = contractTermEnd(c)
+  if (!end || at >= end) return 0
+  let n = 0
+  while (addMonths(at, n) < end) n++
+  // Si la vigencia aún no empieza, lo máximo es la permanencia completa.
+  return Math.min(n, c.min_term_months ?? n)
+}
+
+/**
+ * Alta bonificada que se cobraría si el cliente cancela en esa fecha, proporcional a los meses de
+ * permanencia que faltan (08_Finanzas: "se cobra proporcional si cancela antes de 6 meses").
+ */
+export function earlyTerminationFee(c: Contract, at = todayISO()): number {
+  if (!c.setup_fee_waived || !c.min_term_months || c.status !== 'firmado') return 0
+  return Math.round((c.setup_fee_waived * monthsLeft(c, at)) / c.min_term_months)
+}
+
+export type ContractPhase = 'sin_firma' | 'permanencia' | 'mes_a_mes' | 'vencido' | 'terminado'
+export function contractPhase(c: Contract, at = todayISO()): ContractPhase {
+  if (c.status === 'terminado') return 'terminado'
+  if (c.status !== 'firmado') return 'sin_firma'
+  const end = contractTermEnd(c)
+  if (!end || at < end) return 'permanencia'
+  return c.auto_renew ? 'mes_a_mes' : 'vencido'
+}
+
+// ---------- Metas ----------
+
+export function goalValue(db: DB, s: Settings, g: Goal): number {
+  const metric: GoalMetric = g.metric
+  switch (metric) {
+    case 'clientes_activos':
+      return live(db.clients).filter((c) => c.status === 'activo').length
+    case 'facturas':
+      return live(db.invoices).filter((i) => i.status === 'emitida').length
+    case 'mrr':
+      return mrr(db, s).active
+    case 'sucursales':
+      return distribution(db).activeBranches
+    case 'usuarios_activos':
+      return live(db.profiles).filter((p) => p.active).length
+    case 'manual':
+      return g.done ? g.target : 0
+  }
 }

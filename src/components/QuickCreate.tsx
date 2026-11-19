@@ -10,26 +10,32 @@ import type { TableName, Tables, Stage } from '../lib/types'
 import {
   STAGES, SERVICE_TYPES, SOURCES, INTERACTION_KINDS, TASK_KINDS, PAYMENT_METHODS, DOC_KINDS, ROLES,
   CLIENT_STATUS, LEAD_STATUS, PRIORITY, TICKET_STATUS, CHANGE_STATUS, SUB_STATUS, PROJECT_STATUS, DOC_STATUS, VELERO,
+  EXPENSE_CATEGORIES, EXPENSE_KINDS, EXPENSE_STATUS, ASSET_KINDS, COST_TYPES, CONTRACT_KINDS, CONTRACT_STATUS,
 } from '../lib/constants'
 import { addDays, addBusinessDays, todayISO } from '../lib/format'
 
 export type Kind =
   | 'lead' | 'client' | 'contact' | 'branch' | 'opportunity' | 'task' | 'interaction' | 'ticket' | 'time' | 'change'
   | 'document' | 'payment' | 'invoice' | 'subscription' | 'product' | 'referral' | 'project' | 'profile' | 'phase'
+  | 'expense' | 'asset' | 'contract'
 
 const TABLE: Record<Kind, TableName> = {
   lead: 'leads', client: 'clients', contact: 'contacts', branch: 'branches', opportunity: 'opportunities', task: 'tasks',
   interaction: 'interactions', ticket: 'tickets', time: 'time_entries', change: 'change_requests', document: 'documents',
   payment: 'payments', invoice: 'invoices', subscription: 'subscriptions', product: 'products', referral: 'referrals',
   project: 'projects', profile: 'profiles', phase: 'project_phases',
+  expense: 'expenses', asset: 'assets', contract: 'contracts',
 }
 const TITLES: Record<Kind, string> = {
   lead: 'prospecto', client: 'cliente', contact: 'contacto', branch: 'sucursal', opportunity: 'oportunidad', task: 'tarea',
   interaction: 'interacción', ticket: 'ticket de soporte', time: 'registro de horas', change: 'cambio de alcance', document: 'documento',
   payment: 'pago', invoice: 'factura (CFDI)', subscription: 'suscripción', product: 'producto o servicio', referral: 'referido',
   project: 'proyecto', profile: 'usuario', phase: 'fase / hito',
+  expense: 'gasto', asset: 'servicio (dominio, hosting, licencia…)', contract: 'contrato',
 }
 const FEM = new Set<Kind>(['opportunity', 'task', 'interaction', 'branch', 'invoice', 'subscription', 'phase'])
+
+const httpsOnly = (v: unknown) => (v && !/^https:\/\//i.test(String(v).trim()) ? 'Pega una liga que empiece con https://' : undefined)
 
 const toOpts = (m: Record<string, { label: string }>): Option[] => Object.entries(m).map(([value, { label }]) => ({ value, label }))
 
@@ -78,6 +84,7 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
   const opps = useTable('opportunities')
   const invoices = useTable('invoices')
   const subs = useTable('subscriptions')
+  const assets = useTable('assets')
 
   const clientOpts = clients.map((c) => ({ value: c.id, label: c.company_name })).sort((a, b) => a.label.localeCompare(b.label))
   const userOpts = users.filter((u) => u.active).map((u) => ({ value: u.id, label: u.full_name }))
@@ -320,6 +327,60 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
           { name: 'estimated_hours', label: 'Horas estimadas', type: 'number', step: 0.5, span: 1 },
           { name: 'notes', label: 'Notas / qué se hace', type: 'textarea' },
         ]
+      case 'expense':
+        return [
+          { name: 'concept', label: 'Concepto', required: true, autoFocus: true, placeholder: 'Plan Pro de Supabase, dominio, comisión…' },
+          { name: 'vendor', label: 'Proveedor', span: 1 },
+          { name: 'expense_date', label: 'Fecha', type: 'date', required: true, span: 1 },
+          { name: 'category', label: 'Categoría', type: 'select', options: EXPENSE_CATEGORIES, required: true, span: 1 },
+          { name: 'kind', label: 'Tipo', type: 'select', options: EXPENSE_KINDS, required: true, span: 1 },
+          { name: 'client_id', label: 'Cliente', type: 'select', options: clientOpts, span: 1, show: (v) => v.kind === 'directo' },
+          { name: 'project_id', label: 'Proyecto', type: 'select', options: projectOpts, span: 1, show: (v) => v.kind === 'directo' },
+          { name: 'product_id', label: 'Producto al que se carga', type: 'select', options: productOpts, span: 1, hint: 'Ej. Socaire Pedidos, para el margen del SaaS' },
+          { name: 'asset_id', label: 'Servicio', type: 'select', span: 1, options: assets.map((a) => ({ value: a.id, label: a.name })), hint: 'Si es el pago de un dominio, hosting…' },
+          { name: 'subtotal', label: 'Subtotal (sin IVA)', type: 'money', required: true, span: 1 },
+          { name: 'tax', label: 'IVA', type: 'money', span: 1, hint: '0 si el proveedor no da factura' },
+          { name: 'total', label: 'Total pagado', type: 'money', required: true, span: 1 },
+          { name: 'status', label: 'Estado', type: 'select', options: toOpts(EXPENSE_STATUS), required: true, span: 1 },
+          { name: 'due_date', label: 'Fecha límite de pago', type: 'date', span: 1, show: (v) => v.status === 'pendiente' },
+          { name: 'method', label: 'Forma de pago', type: 'select', options: PAYMENT_METHODS, span: 1 },
+          { name: 'cfdi_folio', label: 'Folio del CFDI del proveedor', span: 1 },
+          { name: 'notes', label: 'Notas', type: 'textarea' },
+        ]
+      case 'asset':
+        return [
+          { name: 'name', label: '¿Qué es?', required: true, autoFocus: true, placeholder: 'Dominio alsocaire.com, Supabase de Pedidos…' },
+          { name: 'kind', label: 'Tipo', type: 'select', options: ASSET_KINDS, required: true, span: 1 },
+          { name: 'provider', label: 'Plataforma / proveedor', span: 1 },
+          { name: 'url', label: 'Enlace (panel o sitio)', placeholder: 'https://…', validate: httpsOnly },
+          { name: 'account', label: 'Cuenta de acceso (correo o usuario)', hint: 'Nunca guardes contraseñas aquí' },
+          { name: 'cost_type', label: 'Tipo de costo', type: 'select', options: COST_TYPES, required: true, span: 1 },
+          { name: 'cost', label: 'Costo (MXN)', type: 'money', span: 1, show: (v) => v.cost_type !== 'gratis' },
+          { name: 'renewal_date', label: 'Próxima renovación', type: 'date', span: 1, show: (v) => v.cost_type !== 'gratis' },
+          { name: 'product_id', label: 'Producto', type: 'select', options: productOpts, span: 1, hint: 'Lígalo a Socaire Pedidos para calcular su costo real' },
+          { name: 'client_id', label: 'Cliente (si es solo de uno)', type: 'select', options: clientOpts, span: 1 },
+          { name: 'status', label: 'Estado', type: 'select', required: true, span: 1, options: [{ value: 'activo', label: 'Activo' }, { value: 'cancelado', label: 'Cancelado' }] },
+          { name: 'notes', label: 'Notas', type: 'textarea' },
+        ]
+      case 'contract':
+        return [
+          { name: 'client_id', label: 'Cliente', type: 'select', options: clientOpts, required: true, span: 1 },
+          { name: 'kind', label: 'Tipo', type: 'select', options: CONTRACT_KINDS, required: true, span: 1 },
+          { name: 'title', label: 'Nombre del contrato', required: true, autoFocus: true, placeholder: 'Contrato de servicio Socaire Pedidos' },
+          { name: 'subscription_id', label: 'Suscripción que respalda', type: 'select', span: 1, options: subs.map((x) => ({ value: x.id, label: `${clients.find((c) => c.id === x.client_id)?.company_name} · ${products.find((p) => p.id === x.product_id)?.name}` })) },
+          { name: 'project_id', label: 'Proyecto', type: 'select', options: projectOpts, span: 1 },
+          { name: 'status', label: 'Estado', type: 'select', options: toOpts(CONTRACT_STATUS), required: true, span: 1 },
+          { name: 'sent_date', label: 'Enviado el', type: 'date', span: 1, show: (v) => v.status !== 'borrador' },
+          { name: 'signed_date', label: 'Firmado el', type: 'date', span: 1, show: (v) => v.status === 'firmado' || v.status === 'terminado' },
+          { name: 'start_date', label: 'Inicio de vigencia', type: 'date', span: 1, hint: 'Normalmente el go-live' },
+          { name: 'min_term_months', label: 'Permanencia mínima (meses)', type: 'number', min: 0, span: 1 },
+          { name: 'renewal_notice_days', label: 'Avisarme antes (días)', type: 'number', min: 0, span: 1 },
+          { name: 'auto_renew', label: 'Se renueva mes a mes al terminar la permanencia', type: 'checkbox' },
+          { name: 'setup_fee_waived', label: 'Alta bonificada', type: 'money', span: 1, hint: 'Se cobra proporcional si cancela antes de la permanencia' },
+          { name: 'terminated_date', label: 'Terminado el', type: 'date', span: 1, show: (v) => v.status === 'terminado' },
+          { name: 'document_url', label: 'Liga al contrato en Google Drive', placeholder: 'https://drive.google.com/…', validate: httpsOnly },
+          { name: 'notes', label: 'Condiciones / notas', type: 'textarea' },
+        ]
       case 'profile':
         return [
           { name: 'full_name', label: 'Nombre', required: true, autoFocus: true },
@@ -329,13 +390,13 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
           { name: 'active', label: 'Activo', type: 'checkbox', span: 1 },
         ]
     }
-  }, [kind, clientOpts, userOpts, productOpts, projectOpts, opps, invoices, subs, clients, products, settings.iva_rate, isEdit, record, state.defaults])
+  }, [kind, clientOpts, userOpts, productOpts, projectOpts, opps, invoices, subs, clients, products, assets, settings.iva_rate, isEdit, record, state.defaults])
 
   const initial = useMemo(() => {
     if (record) {
       const r = { ...record }
       if (kind === 'interaction' && typeof r.occurred_at === 'string') r.occurred_at = r.occurred_at.slice(0, 10)
-      return r
+      return withMarkers(kind, r)
     }
     const base: Record<string, unknown> = {}
     switch (kind) {
@@ -355,10 +416,22 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
       case 'product': Object.assign(base, { kind: 'saas', billing: 'mensual', active: true }); break
       case 'referral': Object.assign(base, { active: true, signed_date: today }); break
       case 'project': Object.assign(base, { status: 'planeacion', priority: 'media', project_type: 'implementacion', start_date: today, manager_id: me?.id, with_velero: true }); break
+      case 'expense': Object.assign(base, { expense_date: today, category: 'software', kind: 'operativo', status: 'pagado', method: 'tarjeta', subtotal: 0, tax: 0, total: 0 }); break
+      case 'asset': Object.assign(base, { kind: 'hosting', cost_type: 'mensual', cost: 0, status: 'activo' }); break
+      case 'contract': Object.assign(base, { kind: 'servicio_saas', status: 'borrador', min_term_months: 6, renewal_notice_days: 30, auto_renew: true, setup_fee_waived: 0 }); break
       case 'profile': Object.assign(base, { active: true, roles: ['comercial'], hourly_cost: settings.default_hourly_cost }); break
     }
-    return { ...base, ...state.defaults }
-  }, [record, kind, me?.id, today, settings, state.defaults])
+    const init: Record<string, unknown> = { ...base, ...state.defaults }
+    if (kind === 'contract' && init.subscription_id) {
+      const sub = subs.find((x) => x.id === init.subscription_id)
+      if (sub) Object.assign(init, {
+        client_id: sub.client_id, start_date: init.start_date ?? sub.start_date, min_term_months: sub.min_term_months ?? init.min_term_months,
+        setup_fee_waived: sub.setup_fee_waived ? sub.setup_fee ?? 0 : 0,
+        title: init.title ?? `Contrato de servicio ${products.find((p) => p.id === sub.product_id)?.name ?? ''}`.trim(),
+      })
+    }
+    return withMarkers(kind, init)
+  }, [record, kind, me?.id, today, settings, state.defaults, subs, products])
 
   // Ajustes automáticos mientras se captura
   const onChange = (v: Record<string, unknown>) => {
@@ -372,6 +445,18 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
         const tax = Math.round(sub * settings.iva_rate * 100) / 100
         return { ...v, tax, total: Math.round((sub + tax) * 100) / 100, __lastSub: v.subtotal }
       }
+    }
+    if (kind === 'expense' && v.__lastSub !== v.subtotal) {
+      const sub = Number(v.subtotal) || 0
+      const tax = Math.round(sub * settings.iva_rate * 100) / 100
+      return { ...v, tax, total: Math.round((sub + tax) * 100) / 100, __lastSub: v.subtotal }
+    }
+    if (kind === 'expense' && v.__lastTax !== v.tax) {
+      return { ...v, total: Math.round(((Number(v.subtotal) || 0) + (Number(v.tax) || 0)) * 100) / 100, __lastTax: v.tax }
+    }
+    if (kind === 'contract' && v.subscription_id && v.__lastSub !== v.subscription_id) {
+      const sub = subs.find((x) => x.id === v.subscription_id)
+      if (sub) return { ...v, client_id: sub.client_id, start_date: v.start_date || sub.start_date, min_term_months: sub.min_term_months ?? v.min_term_months, setup_fee_waived: sub.setup_fee_waived ? sub.setup_fee ?? 0 : 0, __lastSub: v.subscription_id }
     }
     if (kind === 'subscription' && v.product_id && v.__lastProd !== v.product_id) {
       const p = products.find((x) => x.id === v.product_id)
@@ -393,6 +478,10 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
     if (kind === 'change' && (data.status === 'aprobado' || data.status === 'hecho') && !data.approved_date) data.approved_date = today
     if (kind === 'ticket' && data.status !== 'nuevo' && !record?.first_response_at) data.first_response_at = new Date().toISOString()
     if (kind === 'ticket' && (data.status === 'resuelto' || data.status === 'cerrado') && !record?.resolved_at) data.resolved_at = new Date().toISOString()
+    if (kind === 'contract' && data.status !== 'borrador' && !data.sent_date) data.sent_date = today
+    if (kind === 'contract' && data.status === 'firmado' && !data.signed_date) data.signed_date = today
+    if (kind === 'contract' && data.status === 'terminado' && !data.terminated_date) data.terminated_date = today
+    for (const k of Object.keys(data)) if (k.startsWith('__')) delete data[k]
     const withVelero = data.with_velero
     delete data.with_velero
     // Campos de contexto que no están en el formulario (p. ej. project_id de un cambio)
@@ -416,10 +505,18 @@ function QuickDrawer({ state, onClose }: { state: OpenState; onClose: () => void
 
   const title = `${isEdit ? 'Editar' : FEM.has(kind) ? 'Nueva' : 'Nuevo'} ${TITLES[kind]}`
   return (
-    <Drawer open onClose={onClose} title={title} width={kind === 'client' || kind === 'invoice' || kind === 'subscription' ? 600 : 520}>
+    <Drawer open onClose={onClose} title={title} width={kind === 'client' || kind === 'invoice' || kind === 'subscription' || kind === 'expense' || kind === 'contract' ? 600 : 520}>
       <RecordForm fields={fields} initial={initial} onSubmit={save} onCancel={onClose} onChange={onChange} submitLabel={isEdit ? 'Guardar cambios' : 'Crear'} />
     </Drawer>
   )
+}
+
+// Marca los valores iniciales para que los cálculos automáticos (IVA, total) solo corran
+// cuando la persona cambia ese campo, y no pisen lo que ya estaba guardado.
+function withMarkers(kind: Kind, v: Record<string, unknown>) {
+  if (kind === 'expense') return { ...v, __lastSub: v.subtotal, __lastTax: v.tax }
+  if (kind === 'contract') return { ...v, __lastSub: v.subscription_id }
+  return v
 }
 
 export async function createVeleroPhases(

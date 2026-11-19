@@ -185,3 +185,87 @@ export const DEFAULT_SETTINGS = {
   branches_per_package: 5,
 }
 export type Settings = typeof DEFAULT_SETTINGS
+
+// ---------- Gastos, servicios, contratos y metas (Entrega B) ----------
+// Mismas categorías que la hoja Catálogos del Excel de ingresos y egresos.
+export const EXPENSE_CATEGORIES = [
+  { value: 'software', label: 'Software y suscripciones' },
+  { value: 'hosting', label: 'Hosting y dominios' },
+  { value: 'marketing', label: 'Publicidad y marketing' },
+  { value: 'honorarios', label: 'Honorarios profesionales' },
+  { value: 'equipo', label: 'Equipo y mobiliario' },
+  { value: 'viaticos', label: 'Transporte y viáticos' },
+  { value: 'comisiones', label: 'Comisiones bancarias' },
+  { value: 'impuestos', label: 'Impuestos y contribuciones' },
+  { value: 'capacitacion', label: 'Capacitación' },
+  { value: 'telefonia', label: 'Internet y telefonía' },
+  { value: 'otros', label: 'Otros' },
+]
+export const expenseCategoryLabel = (v?: string | null) => EXPENSE_CATEGORIES.find((c) => c.value === v)?.label ?? v ?? '—'
+export const EXPENSE_KINDS = [
+  { value: 'operativo', label: 'Gasto operativo' },
+  { value: 'directo', label: 'Costo directo (de un cliente o proyecto)' },
+]
+export const EXPENSE_STATUS: LabelMap = {
+  pagado: { label: 'Pagado', tone: 'green' },
+  pendiente: { label: 'Por pagar', tone: 'amber' },
+}
+export const ASSET_KINDS = [
+  { value: 'dominio', label: 'Dominio' },
+  { value: 'hosting', label: 'Hosting / servidor' },
+  { value: 'base_datos', label: 'Base de datos' },
+  { value: 'repositorio', label: 'Repositorio de código' },
+  { value: 'correo', label: 'Correo / workspace' },
+  { value: 'software', label: 'Software / licencia' },
+  { value: 'api', label: 'Automatización / API' },
+  { value: 'diseno', label: 'Diseño / contenido' },
+  { value: 'otro', label: 'Otro' },
+]
+export const COST_TYPES = [
+  { value: 'mensual', label: 'Fijo mensual' },
+  { value: 'anual', label: 'Fijo anual' },
+  { value: 'por_cliente', label: 'Por cliente (mensual)' },
+  { value: 'unico', label: 'Pago único' },
+  { value: 'gratis', label: 'Gratis' },
+]
+export const CONTRACT_KINDS = [
+  { value: 'servicio_saas', label: 'Servicio SaaS (suscripción)' },
+  { value: 'desarrollo', label: 'Desarrollo a la medida' },
+  { value: 'nda', label: 'Confidencialidad (NDA)' },
+  { value: 'datos', label: 'Tratamiento de datos' },
+  { value: 'otro', label: 'Otro' },
+]
+export const CONTRACT_STATUS: LabelMap = {
+  borrador: { label: 'Borrador', tone: 'neutral' },
+  enviado: { label: 'Enviado, sin firma', tone: 'amber' },
+  firmado: { label: 'Firmado', tone: 'green' },
+  terminado: { label: 'Terminado', tone: 'neutral' },
+}
+
+export type GoalMetric = 'manual' | 'clientes_activos' | 'facturas' | 'mrr' | 'sucursales' | 'usuarios_activos'
+export interface Goal {
+  id: string
+  name: string
+  metric: GoalMetric
+  target: number
+  due?: string | null
+  done?: boolean // solo metas manuales
+}
+export const GOAL_METRICS: { value: GoalMetric; label: string }[] = [
+  { value: 'manual', label: 'Manual (la marco al cumplirla)' },
+  { value: 'clientes_activos', label: 'Clientes activos' },
+  { value: 'facturas', label: 'Facturas emitidas' },
+  { value: 'mrr', label: 'MRR activo ($/mes)' },
+  { value: 'sucursales', label: 'Sucursales con servicio' },
+  { value: 'usuarios_activos', label: 'Personas en el equipo (usuarios activos)' },
+]
+// Metas a 12 meses (01_Estrategia/04_Metas_12_meses.md). Se usan si aún no hay metas guardadas.
+export const DEFAULT_GOALS: Goal[] = [
+  { id: 'g1', name: '10 clientes activos al mismo tiempo', metric: 'clientes_activos', target: 10, due: '2027-11-30' },
+  { id: 'g2', name: 'Primera factura (CFDI emitido)', metric: 'facturas', target: 1, due: '2027-03-31' },
+  { id: 'g3', name: 'Constituir la SAS (acta y RFC)', metric: 'manual', target: 1, due: '2027-02-28' },
+  { id: 'g4', name: 'Contrato base, NDA y aviso de privacidad listos', metric: 'manual', target: 1, due: '2027-02-28' },
+  { id: 'g5', name: 'Modelo de suscripción + desarrollo con precios definidos', metric: 'manual', target: 1, due: '2027-01-31' },
+  { id: 'g6', name: 'Ecosistema / app propio (MVP)', metric: 'manual', target: 1, due: '2027-11-30' },
+  { id: 'g7', name: 'Equipo de 2 a 3 personas', metric: 'usuarios_activos', target: 3, due: '2027-11-30' },
+]

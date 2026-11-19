@@ -6,6 +6,7 @@ import { Card, KV, StatusBadge, Tabs, Empty, Badge, Avatar, Menu, MenuItem } fro
 import { DueDate, UserChip } from '../components/links'
 import { DriveFolderButton, DriveFolderValue } from '../components/drive'
 import { useQuick } from '../components/QuickCreate'
+import { ContractsTable, ExpensesTable } from '../components/financeTables'
 import { InvoicesTable, PaymentsTable, ProjectsTable, SubscriptionsTable, TaskList, TicketsTable, DocumentsTable } from '../components/tables'
 import { CLIENT_STATUS, INTERACTION_KINDS, PRIORITY, SOURCES, QUOTE_STATUS } from '../lib/constants'
 import { addDays, fdate, fdatetime, money, todayISO } from '../lib/format'
@@ -42,6 +43,8 @@ export default function ClientDetail() {
       invoices,
       payments,
       tickets: mine(db.tickets),
+      contracts: mine(db.contracts ?? []),
+      expenses: mine(db.expenses ?? []).sort((a, b) => b.expense_date.localeCompare(a.expense_date)),
       documents: mine(db.documents),
       referralsOut: live(db.referrals).filter((r) => r.referrer_client_id === id),
       referredBy: live(db.referrals).find((r) => r.referred_client_id === id),
@@ -255,6 +258,9 @@ export default function ClientDetail() {
               <SubscriptionsTable rows={data.subs} showClient={false} />
               {data.subs.some((s) => s.notes) && <div className="border-t border-stone-100 px-4 py-2 text-xs text-stone-500">{data.subs.map((s) => s.notes).filter(Boolean).join(' · ')}</div>}
             </Card>
+            <Card title="Contratos" actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('contract', { client_id: c.id, subscription_id: data.subs.find((x) => x.status !== 'cancelada')?.id })}><Plus size={13} /> Contrato</button>} bodyClass="">
+              <ContractsTable rows={data.contracts} showClient={false} />
+            </Card>
             <div className="grid gap-5 lg:grid-cols-2">
               <Card title={`Sucursales (${activeUnits} de ${totalBranches || data.branches.length} con servicio)`} actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('branch', { client_id: c.id })}><Plus size={13} /> Sucursal</button>} bodyClass="">
                 {data.branches.length === 0 ? <Empty title="Sin sucursales registradas" /> : (
@@ -274,7 +280,7 @@ export default function ClientDetail() {
               </Card>
               <Card title="Referidos que ha traído" actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('referral', { referrer_client_id: c.id })}><Plus size={13} /> Referido</button>} bodyClass="">
                 {data.referralsOut.length === 0 ? (
-                  <Empty title="Sin referidos todavía">Cada referido que firme en los primeros {settings.referral_window_months} meses baja su tarifa: {settings.referral_steps.map((s) => `−$${s}`).join(', ')} (piso ${money(settings.referral_floor)}).</Empty>
+                  <Empty title="Sin referidos todavía">Cada referido que firme en los primeros {settings.referral_window_months} meses baja su tarifa: {settings.referral_steps.map((s) => `−$${s}`).join(', ')} (piso {money(settings.referral_floor)}).</Empty>
                 ) : (
                   <ul className="divide-y divide-stone-100">
                     {data.referralsOut.map((r) => (
@@ -301,6 +307,11 @@ export default function ClientDetail() {
 
         {tab === 'finanzas' && (
           <div className="space-y-5">
+            {data.expenses.length > 0 && (
+              <Card title={`Gastos directos de este cliente: ${money(data.expenses.reduce((t, e) => t + e.subtotal, 0))} sin IVA`} bodyClass="">
+                <ExpensesTable rows={data.expenses} showClient={false} />
+              </Card>
+            )}
             {data.charges.length > 0 && (
               <Card title="Mensualidades (90 días atrás y adelante)" bodyClass="">
                 <table className="w-full text-sm">

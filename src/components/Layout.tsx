@@ -10,7 +10,7 @@ import { CommandPalette } from './CommandPalette'
 import { useQuick } from './QuickCreate'
 import { Avatar, Menu, MenuItem } from './ui'
 import { buildAlerts, taskOverdue } from '../lib/metrics'
-import { supabase } from '../lib/backend'
+import { missingTables, supabase } from '../lib/backend'
 
 function Logo({ collapsed }: { collapsed: boolean }) {
   return (
@@ -234,6 +234,9 @@ export function Layout() {
                       ['project', 'Proyecto'],
                       ['payment', 'Pago recibido'],
                       ['invoice', 'Factura (CFDI)'],
+                      ['expense', 'Gasto'],
+                      ['contract', 'Contrato'],
+                      ['asset', 'Servicio (dominio, hosting…)'],
                       ['time', 'Horas'],
                       ['ticket', 'Ticket de soporte'],
                     ] as const
@@ -247,6 +250,11 @@ export function Layout() {
             </Menu>
           </div>
         </header>
+        {backend.mode === 'supabase' && missingTables.size > 0 && (
+          <div className="border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-800">
+            Falta preparar la base de datos para gastos, servicios y contratos: corre <code className="rounded bg-amber-100 px-1">supabase/migrations/0005_finanzas_contratos_metas.sql</code> en el SQL Editor de Supabase. Lo demás funciona normal.
+          </div>
+        )}
         {error && <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-sm text-red-700">Error al cargar datos: {error}</div>}
         <main key={location.pathname} ref={mainRef} onScroll={(e) => scrollPos.set(location.pathname, e.currentTarget.scrollTop)} className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1400px] px-6 py-6">

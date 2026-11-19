@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
@@ -6,10 +6,13 @@ import { PageHeader, Tabs, Card, Stat, Badge, Empty, Progress, clickRow } from '
 import { ClientLink } from '../components/links'
 import { useQuick } from '../components/QuickCreate'
 import { InvoicesTable, PaymentsTable, SubscriptionsTable } from '../components/tables'
+import { AssetsTable, ContractsTable, ExpensesTable } from '../components/financeTables'
+import { expenseCategoryLabel } from '../lib/constants'
+import { ExpenseImport } from '../components/ExpenseImport'
 import { addDays, addMonths, fdate, money, monthLabel, todayISO } from '../lib/format'
-import { collectedInMonth, distribution, expectedCharges, mrr, receivables, referralDiscount, subMonthly, subUnitPrice } from '../lib/metrics'
+import { assetMonthly, collectedInMonth, distribution, expectedCharges, expensesByCategory, expensesPending, monthResult, mrr, platformCost, receivables, referralDiscount, subMonthly, subUnitPrice } from '../lib/metrics'
 
-type TabKey = 'resumen' | 'cobros' | 'facturas' | 'pagos' | 'suscripciones' | 'distribucion'
+type TabKey = 'resumen' | 'cobros' | 'facturas' | 'pagos' | 'gastos' | 'servicios' | 'contratos' | 'suscripciones' | 'distribucion'
 
 export default function Finance() {
   const [params, setParams] = useSearchParams()
@@ -22,6 +25,12 @@ export default function Finance() {
   const subs = useTable('subscriptions')
   const clients = useTable('clients')
   const referrals = useTable('referrals')
+  const expenses = useTable('expenses')
+  const assets = useTable('assets')
+  const contracts = useTable('contracts')
+  const [year, setYear] = useState(todayISO().slice(0, 4))
+  const [importOpen, setImportOpen] = useState(false)
+  const [expFilter, setExpFilter] = useState<'todos' | 'pendiente'>('todos')
   const today = todayISO()
 
   const m = mrr(db, settings)
@@ -42,7 +51,22 @@ export default function Finance() {
   const maxM = Math.max(1, ...months.map((x) => Math.max(x.invoiced, x.collected, x.expected)))
 
   const charges = expectedCharges(db, settings, addDays(today, -60), addDays(today, 62))
-  const fixedCost = Math.ceil(Math.max(1, dist.activeBranches + dist.pendingBranches) / settings.branches_per_package) * settings.fixed_cost_per_package
+  const platform = platformCost(db, settings)
+  const fixedCost = platform.amount
+  const thisMonth = monthResult(db, settings, today.slice(0, 7))
+  const pendingExp = expensesPending(db)
+  const yearRows = useMemo(() => {
+    const last = year === today.slice(0, 4) ? Number(today.slice(5, 7)) : 12
+    return Array.from({ length: last }, (_, i) => monthResult(db, settings, `${year}-${String(i + 1).padStart(2, '0')}`))
+  }, [db, settings, year, today])
+  const yearTotal = yearRows.reduce(
+    (t, r) => ({ invoiced: t.invoiced + r.invoiced, collectedNet: t.collectedNet + r.collectedNet, expenses: t.expenses + r.expenses, profit: t.profit + r.profit, ivaCollected: t.ivaCollected + r.ivaCollected, ivaCredit: t.ivaCredit + r.ivaCredit }),
+    { invoiced: 0, collectedNet: 0, expenses: 0, profit: 0, ivaCollected: 0, ivaCredit: 0 },
+  )
+  const byCat = expensesByCategory(db, year)
+  const years = [...new Set([today.slice(0, 4), ...expenses.map((e) => e.expense_date.slice(0, 4)), ...payments.map((p) => p.payment_date.slice(0, 4))])].sort().reverse()
+  const assetsMonthly = assets.reduce((t, a) => t + assetMonthly(db, a), 0)
+  const ticks = [1, 0.5, 0]
 
   return (
     <>
@@ -52,6 +76,7 @@ export default function Finance() {
         actions={
           can('finance.manage') && (
             <>
+              <button className="btn-secondary" onClick={() => quick.open('expense')}><Plus size={15} /> Gasto</button>
               <button className="btn-secondary" onClick={() => quick.open('invoice')}><Plus size={15} /> Factura</button>
               <button className="btn-primary" onClick={() => quick.open('payment')}><Plus size={15} /> Pago recibido</button>
             </>
@@ -66,25 +91,40 @@ export default function Finance() {
           { key: 'cobros', label: 'Cobranza', count: charges.filter((c) => !c.invoice && c.date <= addDays(today, 5)).length },
           { key: 'facturas', label: 'Facturas', count: invoices.length },
           { key: 'pagos', label: 'Pagos', count: payments.length },
+          { key: 'gastos', label: 'Gastos', count: expenses.length },
+          { key: 'servicios', label: 'Servicios y renovaciones', count: assets.filter((a) => a.status === 'activo').length },
+          { key: 'contratos', label: 'Contratos', count: contracts.filter((c) => c.status !== 'terminado').length },
           { key: 'suscripciones', label: 'Suscripciones', count: subs.length },
           { key: 'distribucion', label: 'Distribución y referidos' },
         ]}
       />
+      <ExpenseImport open={importOpen} onClose={() => setImportOpen(false)} />
       <div className="mt-4">
         {tab === 'resumen' && (
           <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <Stat label="Utilidad del mes" value={money(thisMonth.profit)} tone={thisMonth.profit < 0 ? 'red' : 'green'} sub={`Cobrado ${money(thisMonth.collectedNet)} − gastos ${money(thisMonth.expenses)} (sin IVA)`} />
+              <Stat label="Gastos del mes" value={money(thisMonth.expenses)} sub={pendingExp ? `${money(pendingExp)} por pagar` : 'Nada por pagar'} tone={pendingExp ? 'amber' : undefined} onClick={() => setTab('gastos')} />
+              <Stat label="IVA estimado del mes" value={money(Math.max(0, thisMonth.ivaCollected - thisMonth.ivaCredit))} sub={`Cobrado ${money(thisMonth.ivaCollected)} − acreditable ${money(thisMonth.ivaCredit)}. Confírmalo con tu contador.`} />
+            </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <Stat label="MRR activo" value={money(m.active)} sub={`ARR ${money(m.arr)}`} />
               <Stat label="MRR por arrancar" value={money(m.committed)} sub="Suscripciones firmadas sin go-live" />
               <Stat label="Por cobrar" value={money(rec.total)} tone={rec.overdue ? 'red' : undefined} sub={rec.overdue ? `${money(rec.overdue)} vencido` : 'Nada vencido'} onClick={() => setTab('facturas')} />
               <Stat label="Cobrado este mes" value={money(collectedInMonth(payments, today.slice(0, 7)))} tone="green" sub={monthLabel(today.slice(0, 7))} />
-              <Stat label="Costo fijo de plataforma" value={money(fixedCost)} sub={`Margen MRR: ${money(m.active + m.committed - fixedCost)}/mes`} tone={m.active + m.committed - fixedCost < 0 ? 'red' : undefined} />
+              <Stat label="Costo de plataforma" value={money(fixedCost)} sub={`${platform.fromAssets ? 'Según servicios registrados' : 'Estimado por paquete'} · margen ${money(m.active + m.committed - fixedCost)}/mes`} onClick={() => setTab('servicios')} tone={m.active + m.committed - fixedCost < 0 ? 'red' : undefined} />
             </div>
             <Card title="Facturado, cobrado y esperado por mes">
-              <div className="flex h-48 items-end gap-3">
+              <div className="relative flex h-48 items-end gap-3 pl-14">
+                {ticks.map((t) => (
+                  <div key={t} className="pointer-events-none absolute left-0 right-0 flex items-center gap-2" style={{ bottom: `calc(${t} * 10rem + 1.75rem)` }}>
+                    <span className="tnum w-12 text-right text-[10px] text-stone-500">{money(maxM * t)}</span>
+                    <span className="h-px flex-1 bg-stone-100" />
+                  </div>
+                ))}
                 {months.map((x) => (
                   <div key={x.ym} className="flex flex-1 flex-col items-center gap-1">
-                    <div className="flex h-40 w-full items-end justify-center gap-0.5">
+                    <div className="relative flex h-40 w-full items-end justify-center gap-0.5">
                       <div title={`Esperado ${money(x.expected)}`} className="w-1/4 rounded-t bg-brand-200" style={{ height: `${(x.expected / maxM) * 100}%` }} />
                       <div title={`Facturado ${money(x.invoiced)}`} className="w-1/4 rounded-t bg-brand-400" style={{ height: `${(x.invoiced / maxM) * 100}%` }} />
                       <div title={`Cobrado ${money(x.collected)}`} className="w-1/4 rounded-t bg-emerald-500" style={{ height: `${(x.collected / maxM) * 100}%` }} />
@@ -98,6 +138,57 @@ export default function Finance() {
                 <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-brand-400" /> Facturado (con IVA)</span>
                 <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Cobrado</span>
               </div>
+            </Card>
+            <Card
+              title="Estado de resultados (base efectivo)"
+              actions={<select className="input h-8 w-24 py-0 text-sm" value={year} onChange={(e) => setYear(e.target.value)} aria-label="Año">{years.map((y) => <option key={y}>{y}</option>)}</select>}
+              bodyClass=""
+            >
+              <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500">Sustituye la hoja Resumen del Excel. Utilidad = cobrado sin IVA − gastos pagados sin IVA. IVA por pagar = IVA cobrado − IVA acreditable (estimado; tu contador lo confirma).</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-stone-200 bg-stone-50/60"><tr><th className="th">Mes</th><th className="th text-right">Facturado</th><th className="th text-right">Cobrado</th><th className="th text-right">Gastos</th><th className="th text-right">Utilidad</th><th className="th text-right">Margen</th><th className="th text-right">IVA por pagar</th></tr></thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {yearRows.map((r) => (
+                      <tr key={r.ym} className={r.ym === today.slice(0, 7) ? 'bg-brand-50/40' : ''}>
+                        <td className="td">{monthLabel(r.ym)}</td>
+                        <td className="td tnum text-right">{money(r.invoiced)}</td>
+                        <td className="td tnum text-right">{money(r.collectedNet)}</td>
+                        <td className="td tnum text-right">{money(r.expenses)}</td>
+                        <td className={`td tnum text-right font-medium ${r.profit < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{money(r.profit)}</td>
+                        <td className="td tnum text-right text-stone-600">{r.collectedNet > 0 ? `${Math.round((r.profit / r.collectedNet) * 100)}%` : '—'}</td>
+                        <td className="td tnum text-right">{money(Math.max(0, r.ivaCollected - r.ivaCredit))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t-2 border-stone-200 font-semibold">
+                    <tr>
+                      <td className="td">Total {year}</td>
+                      <td className="td tnum text-right">{money(yearTotal.invoiced)}</td>
+                      <td className="td tnum text-right">{money(yearTotal.collectedNet)}</td>
+                      <td className="td tnum text-right">{money(yearTotal.expenses)}</td>
+                      <td className={`td tnum text-right ${yearTotal.profit < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{money(yearTotal.profit)}</td>
+                      <td className="td tnum text-right">{yearTotal.collectedNet > 0 ? `${Math.round((yearTotal.profit / yearTotal.collectedNet) * 100)}%` : '—'}</td>
+                      <td className="td tnum text-right">{money(Math.max(0, yearTotal.ivaCollected - yearTotal.ivaCredit))}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </Card>
+            <Card title={`Gastos por categoría ${year}`} bodyClass="">
+              {byCat.length === 0 ? <Empty title="Sin gastos pagados este año" /> : (
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-stone-100">
+                    {byCat.map((x) => (
+                      <tr key={x.category}>
+                        <td className="td w-1/3">{expenseCategoryLabel(x.category)}</td>
+                        <td className="td"><Progress pct={(x.amount / Math.max(1, yearTotal.expenses)) * 100} /></td>
+                        <td className="td tnum w-32 text-right font-medium">{money(x.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </Card>
             <Card title="Ingreso recurrente por cliente" bodyClass="">
               {subs.length === 0 ? <Empty title="Sin suscripciones" /> : (
@@ -160,6 +251,40 @@ export default function Finance() {
         {tab === 'pagos' && (
           <Card title="Pagos recibidos" bodyClass="">
             <PaymentsTable rows={[...payments].sort((a, b) => b.payment_date.localeCompare(a.payment_date))} />
+          </Card>
+        )}
+        {tab === 'gastos' && (
+          <Card
+            title="Gastos"
+            actions={
+              <div className="flex items-center gap-2">
+                <select className="input h-8 w-36 py-0 text-sm" value={expFilter} onChange={(e) => setExpFilter(e.target.value as 'todos' | 'pendiente')} aria-label="Filtrar gastos">
+                  <option value="todos">Todos</option>
+                  <option value="pendiente">Por pagar</option>
+                </select>
+                {can('finance.manage') && <button className="btn-ghost btn-sm" onClick={() => setImportOpen(true)}>Importar del Excel</button>}
+                {can('finance.manage') && <button className="btn-secondary btn-sm" onClick={() => quick.open('expense')}><Plus size={13} /> Gasto</button>}
+              </div>
+            }
+            bodyClass=""
+          >
+            <ExpensesTable rows={expenses.filter((e) => expFilter === 'todos' || e.status === 'pendiente').sort((a, b) => b.expense_date.localeCompare(a.expense_date))} />
+          </Card>
+        )}
+        {tab === 'servicios' && (
+          <Card
+            title="Servicios y renovaciones"
+            actions={can('finance.manage') && <button className="btn-secondary btn-sm" onClick={() => quick.open('asset')}><Plus size={13} /> Servicio</button>}
+            bodyClass=""
+          >
+            <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500">Dominios, hosting, bases de datos, licencias y APIs (hoja Alojamiento del Excel). Costo mensual equivalente: <span className="tnum font-medium text-stone-700">{money(assetsMonthly)}</span>. Te avisa 15 días antes de cada renovación. Nunca guardes contraseñas aquí.</p>
+            <AssetsTable rows={[...assets].sort((a, b) => (a.renewal_date ?? '9999').localeCompare(b.renewal_date ?? '9999'))} />
+          </Card>
+        )}
+        {tab === 'contratos' && (
+          <Card title="Contratos" actions={<button className="btn-secondary btn-sm" onClick={() => quick.open('contract')}><Plus size={13} /> Contrato</button>} bodyClass="">
+            <p className="border-b border-stone-100 px-4 py-2 text-xs text-stone-500">Socaire Pedidos: permanencia mínima de 6 meses. Si el cliente cancela antes, se cobra la parte proporcional del alta bonificada.</p>
+            <ContractsTable rows={[...contracts].sort((a, b) => (b.start_date ?? b.created_at ?? '').localeCompare(a.start_date ?? a.created_at ?? ''))} />
           </Card>
         )}
         {tab === 'suscripciones' && (
