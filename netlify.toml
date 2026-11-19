@@ -16,10 +16,23 @@
   to = "/index.html"
   status = 200
 
+# Cabeceras de seguridad para todo el sitio.
+# Si algún día se agrega otro servicio externo (otra API, fuentes, analítica), hay que
+# añadir su dominio en la línea Content-Security-Policy o el navegador lo bloqueará.
 [[headers]]
   for = "/*"
   [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://hadvkwynsgznwbpwprtv.supabase.co wss://hadvkwynsgznwbpwprtv.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    X-Robots-Tag = "noindex, nofollow"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+# El HTML nunca se guarda en caché: así cada despliegue (y sus cabeceras) llega de inmediato.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

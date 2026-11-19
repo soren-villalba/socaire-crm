@@ -40,8 +40,11 @@ El CRM usa el proyecto de Supabase `hadvkwynsgznwbpwprtv`. Para instalarlo desde
 1. Authentication → Sign In / Providers → Email: apagar "Allow new users to sign up".
 2. Authentication → Users → Add user: primero el administrador, después los demás ("Auto Confirm User").
 3. SQL Editor → pegar `supabase/instalar-todo.sql` → Run (esquema, permisos, auditoría y datos iniciales).
-4. Si alguien entra y ve "no tiene perfil activo", correr `supabase/reparar-acceso.sql`.
-5. Para dar de alta a alguien nuevo: crearlo en Authentication → Users y ajustar su rol en Configuración → Usuarios.
+4. SQL Editor → pegar `supabase/migrations/0002_seguridad.sql` → Run (refuerzo de seguridad).
+5. Si alguien entra y ve "no tiene perfil activo", correr `supabase/reparar-acceso.sql`.
+6. Para dar de alta a alguien nuevo: crearlo en Authentication → Users. Entra **inactivo y sin roles**; actívalo y dale roles en Configuración → Usuarios y roles.
+
+Seguridad y configuración manual del panel: ver [`SEGURIDAD.md`](SEGURIDAD.md).
 
 Para trabajar en tu PC conectado a Supabase, crea `.env.local` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (la clave publishable). Nunca uses la clave `service_role` en la app.
 

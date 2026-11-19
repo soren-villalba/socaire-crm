@@ -7,7 +7,17 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { AuditLog, DB, TableName, Tables } from './types'
 import { TABLES, emptyDB } from './types'
 import { uid } from './format'
-import { buildSeed } from './seed'
+import type { buildSeed as BuildSeed } from './seed'
+
+// Los datos iniciales (clientes reales, precios, notas) SOLO se incluyen en la versión local.
+// Si el build tiene Supabase configurado, Vite reemplaza la condición por un valor fijo y el
+// archivo seed.ts queda fuera del JavaScript público (no se publica en Netlify).
+const HAS_SUPABASE_ENV = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
+async function loadSeed(): Promise<DB> {
+  if (HAS_SUPABASE_ENV) return emptyDB()
+  const mod: { buildSeed: typeof BuildSeed } = await import('./seed')
+  return mod.buildSeed()
+}
 
 export interface Backend {
   mode: 'local' | 'supabase'
@@ -48,7 +58,7 @@ export class LocalBackend implements Backend {
       const parsed = JSON.parse(raw) as DB
       this.db = { ...emptyDB(), ...parsed }
     } else {
-      this.db = buildSeed()
+      this.db = await loadSeed()
       this.persist()
     }
     return structuredClone(this.db)
@@ -97,8 +107,8 @@ export class LocalBackend implements Backend {
   }
 
   // Utilidades exclusivas del modo local
-  reset() {
-    this.db = buildSeed()
+  async reset() {
+    this.db = await loadSeed()
     this.persist()
   }
   replace(db: DB) {
@@ -124,7 +134,7 @@ export class SupabaseBackend implements Backend {
         ;(db as Record<string, unknown[]>)[t] = data ?? []
       }),
     )
-    const { data: logs } = await this.sb.from('audit_logs').select('*').order('changed_at', { ascending: false }).limit(1000)
+    const { data: logs } = await this.sb.from('audit_logs').select('id, table_name, record_id, action, changed_by, changed_at, summary').order('changed_at', { ascending: false }).limit(1000)
     db.audit_logs = (logs ?? []) as AuditLog[]
     return db
   }
