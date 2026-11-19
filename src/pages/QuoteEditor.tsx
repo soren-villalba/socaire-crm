@@ -1,12 +1,11 @@
-import logo from '../logo.svg'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Copy, Printer, Send, Check, X, Plus, Trash2, Lock, ExternalLink } from 'lucide-react'
 import { useData, useTable } from '../lib/store'
 import { Badge, Card, StatusBadge, Confirm } from '../components/ui'
 import { ClientLink } from '../components/links'
 import { useQuick } from '../components/QuickCreate'
+import { QuotePrint, pendingPlaceholders, quoteFileName } from '../components/QuotePrint'
 import { DriveFolderButton, DriveIcon } from '../components/drive'
 import { parseDrive } from '../lib/drive'
 import { QUOTE_STATUS } from '../lib/constants'
@@ -15,9 +14,9 @@ import { quoteEffectiveStatus, quoteTotals } from '../lib/metrics'
 import type { QuoteItem } from '../lib/types'
 
 const DEFAULT_CONDITIONS = `Condiciones de pago: anticipo 50% · entrega 50% · IVA aparte (en productos por suscripción: a partir de la fecha de inicio del cobro).
-Calendario de entrega: método VELERO; fecha estimada de salida: [fecha].
+Calendario de entrega: método VELERO; la fecha estimada de salida se confirma al recibir el anticipo.
 Inicio del servicio y del primer cobro: go-live o fecha acordada.
-Permanencia mínima: [6] meses; si se cancela antes, el alta se cobra de forma proporcional.
+Permanencia mínima: 6 meses; si se cancela antes, el alta se cobra de forma proporcional.
 Qué necesitamos del cliente: persona que decide, información en un plazo de 3 días hábiles, accesos.
 Datos fiscales del cliente para el CFDI.
 Cambios fuera del plan inicial se cotizan aparte como actualización.`
@@ -57,6 +56,7 @@ export default function QuoteEditor() {
   const items = useMemo(() => db.quote_items.filter((i) => i.quote_id === quote?.id && !i.deleted_at).sort((a, b) => a.sort - b.sort), [db.quote_items, quote?.id])
   const versions = useMemo(() => quotes.filter((q) => q.folio === quote?.folio).sort((a, b) => b.version - a.version), [quotes, quote?.folio])
   const [confirmDel, setConfirmDel] = useState(false)
+  const [printWarn, setPrintWarn] = useState<string[] | null>(null)
   const quick = useQuick()
   const docs = useMemo(() => db.documents.filter((d) => d.quote_id === quote?.id && !d.deleted_at), [db.documents, quote?.id])
 
@@ -67,6 +67,22 @@ export default function QuoteEditor() {
   const client = byId('clients', quote.client_id)
   const clientOpps = db.opportunities.filter((o) => o.client_id === quote.client_id && !o.deleted_at)
   const status = quoteEffectiveStatus(quote)
+
+  // Exportar: el nombre sugerido del PDF sigue la convención de Drive (Cotizacion_SOC-2026-003.pdf)
+  const doPrint = () => {
+    const prev = document.title
+    document.title = quoteFileName(quote)
+    const restore = () => { document.title = prev; window.removeEventListener('afterprint', restore) }
+    window.addEventListener('afterprint', restore)
+    window.print()
+    setTimeout(restore, 1500)
+  }
+  const exportPdf = () => {
+    const pending = pendingPlaceholders(quote.conditions)
+    if (pending.length) setPrintWarn(pending)
+    else doPrint()
+  }
+  const pendingCond = pendingPlaceholders(quote.conditions)
 
   const setQ = (patch: Parameters<typeof update<'quotes'>>[2]) => update('quotes', quote.id, patch, { silent: true })
   const setItem = (it: QuoteItem, patch: Partial<QuoteItem>) => update('quote_items', it.id, patch, { silent: true })
@@ -101,7 +117,7 @@ export default function QuoteEditor() {
             </>
           )}
           <button className="btn-secondary" onClick={newVersion}><Copy size={14} /> Nueva versión</button>
-          <button className="btn-secondary" onClick={() => window.print()}><Printer size={14} /> Imprimir / PDF</button>
+          <button className="btn-secondary" onClick={exportPdf} title="En el diálogo elige «Guardar como PDF»"><Printer size={14} /> Exportar PDF</button>
           {editable && <button className="btn-ghost text-red-600" onClick={() => setConfirmDel(true)}><Trash2 size={14} /></button>}
         </div>
       </div>
@@ -181,7 +197,8 @@ export default function QuoteEditor() {
 
           <Card title="Condiciones y notas">
             <label className="label">Condiciones (se imprimen)</label>
-            <textarea className="input" rows={7} disabled={!editable} defaultValue={quote.conditions ?? ''} key={quote.id + 'c'} onBlur={(e) => setQ({ conditions: e.target.value })} />
+            <textarea className={`input ${pendingCond.length ? 'border-amber-300' : ''}`} rows={7} disabled={!editable} defaultValue={quote.conditions ?? ''} key={quote.id + 'c'} onBlur={(e) => setQ({ conditions: e.target.value })} />
+            {pendingCond.length > 0 && <p className="mt-1 text-xs text-amber-700">Falta llenar: {pendingCond.join(', ')}. Reemplaza los corchetes antes de exportar.</p>}
             <label className="label mt-3">Notas internas (no se imprimen)</label>
             <textarea className="input" rows={2} defaultValue={quote.notes ?? ''} key={quote.id + 'n'} onBlur={(e) => setQ({ notes: e.target.value })} />
             <label className="label mt-3">Archivo en la carpeta de socaire</label>
@@ -243,52 +260,11 @@ export default function QuoteEditor() {
         </div>
       </div>
 
-      {/* Vista de impresión */}
-      {createPortal(<div className="print-area hidden">
-        <div className="flex items-center gap-3 border-b-2 border-brand-400 pb-4">
-          <img src={logo} alt="" className="h-12 w-12" />
-          <div>
-            <div className="font-serif text-3xl font-semibold text-brand-800">socaire</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-brand-400">Soluciones digitales a la medida</div>
-          </div>
-          <div className="ml-auto text-right text-sm">
-            <div className="text-xl font-semibold text-brand-800">Cotización</div>
-            <div>Folio {quote.folio}{quote.version > 1 ? ` · v${quote.version}` : ''}</div>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div><span className="text-stone-500">Preparada para:</span> <b>{client?.legal_name || client?.company_name}</b></div>
-          <div className="text-right"><span className="text-stone-500">Fecha:</span> {fdate(quote.issue_date, { year: true })} · <span className="text-stone-500">Vigencia:</span> {fdate(quote.valid_until, { year: true })}</div>
-        </div>
-        {quote.title && <p className="mt-3 text-base font-medium text-brand-800">{quote.title}</p>}
-        <table className="mt-4 w-full text-sm">
-          <thead>
-            <tr className="border-b border-brand-200 text-left text-xs uppercase text-brand-600">
-              <th className="py-2">Concepto</th><th>Cobro</th><th className="text-right">Cant.</th><th className="text-right">Precio</th><th className="text-right">Descuento</th><th className="text-right">Importe</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr key={it.id} className="border-b border-stone-100">
-                <td className="py-2">{it.description}</td><td>{it.kind === 'mensual' ? 'Mensual' : 'Único'}</td><td className="text-right">{it.quantity}</td><td className="text-right">{money(it.unit_price, true)}</td><td className="text-right">{it.discount ? `−${money(it.discount, true)}` : ''}</td><td className="text-right">{money(it.quantity * it.unit_price - it.discount, true)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="ml-auto mt-4 w-72 space-y-1 text-sm">
-          {t.monthly > 0 && <div className="flex justify-between rounded bg-brand-100 px-3 py-1.5 font-semibold text-brand-800"><span>Total mensual</span><span>{money(t.monthly, true)} MXN</span></div>}
-          <div className="flex justify-between rounded bg-brand-50 px-3 py-1.5 font-semibold text-brand-800"><span>Pago inicial</span><span>{money(t.once, true)} MXN</span></div>
-          <div className="px-3 text-xs text-stone-500">IVA aparte.</div>
-        </div>
-        {quote.conditions && (
-          <div className="mt-6 text-xs leading-relaxed text-stone-700">
-            <div className="mb-1 font-semibold uppercase tracking-wide text-brand-600">Condiciones</div>
-            {quote.conditions.split('\n').map((l, i) => <p key={i}>{l}</p>)}
-          </div>
-        )}
-        <div className="mt-10 border-t border-stone-200 pt-2 text-center text-xs text-stone-500">socaire · Soluciones digitales a la medida · alsocaire.com</div>
-      </div>, document.body)}
+      {/* Vista de impresión (formato de las cotizaciones en 04_Ventas/Cotizaciones) */}
+      <QuotePrint quote={quote} items={items} client={client} products={db.products} />
 
+      <Confirm open={!!printWarn} onClose={() => setPrintWarn(null)} title="Hay datos sin llenar" confirmLabel="Exportar así" onConfirm={() => setTimeout(doPrint, 50)}
+        text={<>Las condiciones todavía tienen {printWarn?.map((p) => <code key={p} className="mx-0.5 rounded bg-amber-50 px-1 text-amber-800">{p}</code>)}. Saldrían tal cual en el PDF. Cancela y llénalas en <b>Condiciones y notas</b>, o expórtala así.</>} />
       <Confirm open={confirmDel} onClose={() => setConfirmDel(false)} danger title="Eliminar borrador" text={`¿Eliminar la cotización ${quote.folio} v${quote.version}?`} confirmLabel="Eliminar" onConfirm={async () => { await remove('quotes', quote.id, 'Cotización'); navigate('/cotizaciones') }} />
     </>
   )
